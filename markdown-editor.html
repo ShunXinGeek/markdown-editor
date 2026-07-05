@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
@@ -1888,9 +1888,11 @@
     function exportWord() {
       let name = filenameInput.value.trim();
       if (!name) name = '未命名文档.md';
-      name = name.replace(/\.md$/i, '').replace(/\.markdown$/i, '') + '.doc';
+      name = name.replace(/\.md$/i, '').replace(/\.markdown$/i, '') + '.docx';
 
-      const md = editor.value;
+      // 先将软换行转为硬换行（表格除外），确保导出结果正确
+      const rawMd = editor.value;
+      const md = convertSoftBreaksForExport(rawMd);
       let bodyHtml;
       if (typeof marked !== 'undefined') {
         bodyHtml = marked.parse(md);
@@ -1903,7 +1905,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>${escapeHtml(name.replace(/\.doc$/i, ''))}</title>
+  <title>${escapeHtml(name.replace(/\.docx$/i, ''))}</title>
   <style>
     body { font-family: Arial, "微软雅黑", sans-serif; font-size: 12pt; line-height: 1.6; color: #000; text-align: justify; }
     h1 { font-size: 20pt; font-weight: bold; margin: 18pt 0 10pt; }
@@ -1930,7 +1932,7 @@ ${bodyHtml}
 </body>
 </html>`;
 
-      const blob = new Blob([fullHtml], { type: 'application/msword;charset=utf-8' });
+      const blob = new Blob([fullHtml], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -2198,7 +2200,7 @@ ${'</scr' + 'ipt>'}
       }
       let name = filenameInput.value.trim();
       if (!name) name = '未命名文档.md';
-      name = name.replace(/\.(md|markdown|txt|html|doc)$/i, '') + '.png';
+      name = name.replace(/\.(md|markdown|txt|html|docx?)$/i, '') + '.png';
 
       const a = document.createElement('a');
       a.href = currentImageDataUrl;
@@ -3148,8 +3150,61 @@ ${'</scr' + 'ipt>'}
       setTimeout(() => toast.classList.remove('show'), 2000);
     }
 
+    // ── 软换行自动转硬换行（表格除外）──
+    let convertingLineBreaks = false;
+
+    function convertSoftBreaksToHardBreaks() {
+      if (convertingLineBreaks) return false;
+      const oldValue = editor.value;
+      const lines = oldValue.split('\n');
+      const isTableRow = (line) => /^\s*\|.*\|\s*$/.test(line);
+      const result = [];
+      const doubledFlags = new Array(lines.length).fill(false);
+      for (let i = 0; i < lines.length; i++) {
+        result.push(lines[i]);
+        if (i === lines.length - 1) continue;
+        if (lines[i] === '' || lines[i + 1] === '') continue;
+        if (isTableRow(lines[i]) && isTableRow(lines[i + 1])) continue;
+        result.push('');
+        doubledFlags[i] = true;
+      }
+      const newValue = result.join('\n');
+      if (newValue === oldValue) return false;
+      const oldCursor = editor.selectionStart;
+      let offset = 0, pos = 0;
+      for (let i = 0; i < lines.length && pos < oldCursor; i++) {
+        pos += lines[i].length;
+        if (doubledFlags[i] && pos < oldCursor) offset++;
+        if (i < lines.length - 1) pos += 1;
+      }
+      convertingLineBreaks = true;
+      editor.value = newValue;
+      editor.selectionStart = editor.selectionEnd = oldCursor + offset;
+      if (previewMode === 'source') {
+        previewSource.value = newValue;
+      }
+      convertingLineBreaks = false;
+      return true;
+    }
+
+    // 纯函数版本：不修改编辑器，仅返回转换后的字符串（供导出使用）
+    function convertSoftBreaksForExport(text) {
+      const lines = text.split('\n');
+      const isTableRow = (line) => /^\s*\|.*\|\s*$/.test(line);
+      const result = [];
+      for (let i = 0; i < lines.length; i++) {
+        result.push(lines[i]);
+        if (i === lines.length - 1) continue;
+        if (lines[i] === '' || lines[i + 1] === '') continue;
+        if (isTableRow(lines[i]) && isTableRow(lines[i + 1])) continue;
+        result.push('');
+      }
+      return result.join('\n');
+    }
+
     // 事件监听
     editor.addEventListener('input', () => {
+      convertSoftBreaksToHardBreaks();
       clearTimeout(historyTimer);
       historyTimer = setTimeout(recordHistory, 400);
       updatePreview();
@@ -3164,6 +3219,12 @@ ${'</scr' + 'ipt>'}
       autoSave();
     });
     filenameInput.addEventListener('input', autoSave);
+
+    editor.addEventListener('paste', () => {
+      setTimeout(() => {
+        convertSoftBreaksToHardBreaks();
+      }, 0);
+    });
 
     // 拖放文件打开
     const dropOverlay = document.getElementById('drop-overlay');
