@@ -1921,7 +1921,7 @@
           var li = lis[i];
           runs = parseInline(li);
           paras.push(makeDocxParagraph({
-            bullet: { level: indentLevel },
+            numbering: { reference: "bullet-list", level: indentLevel },
             children: runs,
             spacing: { after: 60 },
             indent: { left: 360 * (indentLevel + 1) }
@@ -1938,18 +1938,19 @@
         return paras;
       }
 
-      // 有序列表
+      // 有序列表 - 使用 Word 原生自动编号
       if (tag === 'OL') {
-        var start = parseInt(node.getAttribute('start')) || 1;
-        lis = node.querySelectorAll(':scope > li');
+        var lis = node.querySelectorAll(':scope > li');
         for (i = 0; i < lis.length; i++) {
-          li = lis[i];
+          var li = lis[i];
           runs = parseInline(li);
           paras.push(makeDocxParagraph({
-            children: [new docx.TextRun({ text: (start + i) + '. ' })].concat(runs),
+            numbering: { reference: "ordered-list", level: indentLevel },
+            children: runs,
             spacing: { after: 60 },
             indent: { left: 360 * (indentLevel + 1) }
           }, isBlockquote));
+          // 处理嵌套列表
           for (j = 0; j < li.children.length; j++) {
             child = li.children[j];
             if (child.tagName === 'UL' || child.tagName === 'OL') {
@@ -2078,6 +2079,96 @@
     }
 
     // 导出 Word（真正的 OOXML DOCX 文件）
+    // Word 原生自动编号配置（多级列表）
+    const orderedConfig = {
+      reference: "ordered-list",
+      levels: [
+        {
+          level: 0,
+          format: docx.LevelFormat.DECIMAL,
+          text: "%1.",
+          alignment: docx.AlignmentType.LEFT,
+          style: {
+            paragraph: {
+              indent: { left: docx.convertInchesToTwip(0.5), hanging: docx.convertInchesToTwip(0.25) },
+            },
+          },
+        },
+        {
+          level: 1,
+          format: docx.LevelFormat.LOWER_LETTER,
+          text: "%2)",
+          alignment: docx.AlignmentType.LEFT,
+          style: {
+            paragraph: {
+              indent: { left: docx.convertInchesToTwip(1), hanging: docx.convertInchesToTwip(0.25) },
+            },
+          },
+        },
+        {
+          level: 2,
+          format: docx.LevelFormat.LOWER_ROMAN,
+          text: "%3.",
+          alignment: docx.AlignmentType.LEFT,
+          style: {
+            paragraph: {
+              indent: { left: docx.convertInchesToTwip(1.5), hanging: docx.convertInchesToTwip(0.25) },
+            },
+          },
+        },
+      ],
+    };
+
+    const bulletConfig = {
+      reference: "bullet-list",
+      levels: [
+        {
+          level: 0,
+          format: docx.LevelFormat.BULLET,
+          text: "•",
+          alignment: docx.AlignmentType.LEFT,
+          style: {
+            paragraph: {
+              indent: { left: docx.convertInchesToTwip(0.5), hanging: docx.convertInchesToTwip(0.25) },
+            },
+          },
+        },
+        {
+          level: 1,
+          format: docx.LevelFormat.BULLET,
+          text: "○",
+          alignment: docx.AlignmentType.LEFT,
+          style: {
+            paragraph: {
+              indent: { left: docx.convertInchesToTwip(1), hanging: docx.convertInchesToTwip(0.25) },
+            },
+          },
+        },
+        {
+          level: 2,
+          format: docx.LevelFormat.BULLET,
+          text: "■",
+          alignment: docx.AlignmentType.LEFT,
+          style: {
+            paragraph: {
+              indent: { left: docx.convertInchesToTwip(1.5), hanging: docx.convertInchesToTwip(0.25) },
+            },
+          },
+        },
+        {
+          level: 3,
+          format: docx.LevelFormat.BULLET,
+          text: "•",
+          alignment: docx.AlignmentType.LEFT,
+          style: {
+            paragraph: {
+              indent: { left: docx.convertInchesToTwip(2), hanging: docx.convertInchesToTwip(0.25) },
+            },
+          },
+        },
+      ],
+    };
+
     async function exportWord() {
       var name = filenameInput.value.trim();
       if (!name) name = '未命名文档.md';
@@ -2105,6 +2196,7 @@
 
       // 打包为 DOCX 文档
       var doc = new docx.Document({
+        numbering: { config: [bulletConfig, orderedConfig] },
         styles: { default: { document: { run: { font: "Arial", size: 24 } } } },
         sections: [{ children: children }]
       });
