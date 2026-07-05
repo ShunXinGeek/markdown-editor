@@ -1389,6 +1389,7 @@
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docx@9.7.1/dist/index.iife.js"></script>
   <script src="i18n.js"></script>
   <script>
     const editor = document.getElementById('editor');
@@ -1828,113 +1829,290 @@
       showToast(t('toastExported'));
     }
 
-    // 导出 Word：将 Markdown 渲染为 HTML 并伪装成 .doc 下载
 
-    // 将 HTML 中的有序列表转换为 Word 原生自动编号格式（mso-list）
-    function transformOrderedListsForWord(html) {
-      var parser = new DOMParser();
-      var doc = parser.parseFromString(html, 'text/html');
-      var ols = doc.querySelectorAll('ol');
-      if (ols.length === 0) return html;
-      for (var oi = 0; oi < ols.length; oi++) {
-        var ol = ols[oi];
-        var level = 1;
-        var parent = ol.parentElement;
-        while (parent) {
-          if (parent.tagName === 'OL') level++;
-          parent = parent.parentElement;
-        }
-        if (level > 9) level = 9;
-        var start = parseInt(ol.getAttribute('start')) || 1;
-        var children = ol.children;
-        for (var i = 0; i < children.length; i++) {
-          var li = children[i];
-          if (li.tagName !== 'LI') continue;
-          li.setAttribute('style', (li.getAttribute('style') || '') + ';mso-list:l0 level' + level);
-          if (start !== 1 && i === 0) {
-            li.setAttribute('style', li.getAttribute('style') + ';mso-level-start-at:' + start);
+    // ─── DOCX 导出：生成真正的 OOXML DOCX 文件 ───
+
+    // 解析内联 DOM 节点为 docx TextRun / ExternalHyperlink 数组
+    function parseInline(node, baseFmt) {
+      baseFmt = baseFmt || {};
+      var runs = [];
+      (function walk(n, fmt) {
+        for (var i = 0; i < n.childNodes.length; i++) {
+          var c = n.childNodes[i];
+          if (c.nodeType === Node.TEXT_NODE) {
+            var t = c.textContent;
+            if (t) runs.push(new docx.TextRun(Object.assign({ text: t }, fmt)));
+          } else if (c.nodeType === Node.ELEMENT_NODE) {
+            var tg = c.tagName;
+            if (tg === 'STRONG' || tg === 'B') {
+              walk(c, Object.assign({}, fmt, { bold: true }));
+            } else if (tg === 'EM' || tg === 'I') {
+              walk(c, Object.assign({}, fmt, { italics: true }));
+            } else if (tg === 'CODE') {
+              walk(c, Object.assign({}, fmt, {
+                font: "Consolas",
+                shading: { type: docx.ShadingType.SOLID, color: "F5F5F5", fill: "F5F5F5" }
+              }));
+            } else if (tg === 'A') {
+              var href = c.getAttribute('href') || '#';
+              var txt = c.textContent || href;
+              runs.push(new docx.ExternalHyperlink({
+                children: [new docx.TextRun(Object.assign({ text: txt, style: "Hyperlink", color: "0563C1", underline: {} }, fmt))],
+                link: href
+              }));
+            } else if (tg === 'IMG') {
+              runs.push(new docx.TextRun(Object.assign({
+                text: c.getAttribute('alt') || '[图片]', italics: true, color: "999999"
+              }, fmt)));
+            } else if (tg === 'BR') {
+              runs.push(new docx.TextRun(Object.assign({ text: "\n" }, fmt)));
+            } else if (tg === 'UL' || tg === 'OL') {
+              // 嵌套列表不在内联中处理
+            } else {
+              walk(c, fmt);
+            }
           }
-          wrapLiContent(li, level, start, i);
         }
-      }
-      return doc.body.innerHTML;
+      })(node, baseFmt);
+      return runs;
     }
 
-    function wrapLiContent(li, level, start, idx) {
-      var nodesToWrap = [];
-      var children = li.childNodes;
-      for (var j = 0; j < children.length; j++) {
-        var child = children[j];
-        if (child.nodeType === Node.TEXT_NODE) {
-          var text = child.textContent;
-          if (text && text.trim()) {
-            nodesToWrap.push(child);
-          }
-        } else if (child.nodeType === Node.ELEMENT_NODE) {
-          var tag = child.tagName;
-          if (tag === 'OL' || tag === 'UL') continue;
-          nodesToWrap.push(child);
+    // 创建段落，应用引用块样式（如果处于引用上下文中）
+    function makeDocxParagraph(opts, isBq) {
+      if (isBq) {
+        var pOpts = {};
+        for (var k in opts) { if (opts.hasOwnProperty(k)) pOpts[k] = opts[k]; }
+        pOpts.border = {
+          left: { style: docx.BorderStyle.SINGLE, size: 6, color: "CCCCCC", space: 8 }
+        };
+        if (pOpts.indent) {
+          pOpts.indent = { left: (pOpts.indent.left || 0) + 720 };
+        } else {
+          pOpts.indent = { left: 720 };
         }
+        return new docx.Paragraph(pOpts);
       }
-      if (nodesToWrap.length === 0) return;
-      var p = li.ownerDocument.createElement('p');
-      p.setAttribute('style', 'mso-list:l0 level' + level);
-      var firstNode = nodesToWrap[0];
-      for (var k = 0; k < nodesToWrap.length; k++) {
-        p.appendChild(nodesToWrap[k]);
-      }
-      li.insertBefore(p, firstNode);
+      return new docx.Paragraph(opts);
     }
-    function exportWord() {
-      let name = filenameInput.value.trim();
+
+    // 将块级别 DOM 节点转换为 docx Paragraph/Table 数组（异步）
+    async function blockToDocxParas(node, indentLevel, isBlockquote) {
+      indentLevel = indentLevel || 0;
+      if (!node || node.nodeType !== Node.ELEMENT_NODE) return [];
+      var tag = node.tagName, paras = [], i, j, child, runs;
+
+      // 标题
+      var headingMap = { H1: docx.HeadingLevel.HEADING_1, H2: docx.HeadingLevel.HEADING_2, H3: docx.HeadingLevel.HEADING_3, H4: docx.HeadingLevel.HEADING_4, H5: docx.HeadingLevel.HEADING_5, H6: docx.HeadingLevel.HEADING_6 };
+      if (headingMap[tag]) {
+        return [makeDocxParagraph({ heading: headingMap[tag], children: parseInline(node) }, isBlockquote)];
+      }
+
+      // 段落
+      if (tag === 'P') {
+        runs = parseInline(node);
+        if (runs.length > 0) return [makeDocxParagraph({ children: runs, spacing: { after: 120 } }, isBlockquote)];
+        return [];
+      }
+
+      // 无序列表
+      if (tag === 'UL') {
+        var lis = node.querySelectorAll(':scope > li');
+        for (i = 0; i < lis.length; i++) {
+          var li = lis[i];
+          runs = parseInline(li);
+          paras.push(makeDocxParagraph({
+            bullet: { level: indentLevel },
+            children: runs,
+            spacing: { after: 60 },
+            indent: { left: 360 * (indentLevel + 1) }
+          }, isBlockquote));
+          // 处理嵌套列表
+          for (j = 0; j < li.children.length; j++) {
+            child = li.children[j];
+            if (child.tagName === 'UL' || child.tagName === 'OL') {
+              var nested = await blockToDocxParas(child, indentLevel + 1);
+              paras = paras.concat(nested);
+            }
+          }
+        }
+        return paras;
+      }
+
+      // 有序列表
+      if (tag === 'OL') {
+        var start = parseInt(node.getAttribute('start')) || 1;
+        lis = node.querySelectorAll(':scope > li');
+        for (i = 0; i < lis.length; i++) {
+          li = lis[i];
+          runs = parseInline(li);
+          paras.push(makeDocxParagraph({
+            children: [new docx.TextRun({ text: (start + i) + '. ' })].concat(runs),
+            spacing: { after: 60 },
+            indent: { left: 360 * (indentLevel + 1) }
+          }, isBlockquote));
+          for (j = 0; j < li.children.length; j++) {
+            child = li.children[j];
+            if (child.tagName === 'UL' || child.tagName === 'OL') {
+              var nested = await blockToDocxParas(child, indentLevel + 1);
+              paras = paras.concat(nested);
+            }
+          }
+        }
+        return paras;
+      }
+
+      // 代码块
+      if (tag === 'PRE') {
+        var codeEl = node.querySelector('code');
+        var codeText = codeEl ? codeEl.textContent : node.textContent;
+        return [makeDocxParagraph({
+          children: [new docx.TextRun({ text: codeText, font: "Consolas", size: 20 })],
+          shading: { type: docx.ShadingType.SOLID, color: "F5F5F5", fill: "F5F5F5" },
+          spacing: { before: 80, after: 80 }
+        }, isBlockquote)];
+      }
+
+      // 引用
+      if (tag === 'BLOCKQUOTE') {
+        for (i = 0; i < node.childNodes.length; i++) {
+          child = node.childNodes[i];
+          if (child.nodeType === Node.ELEMENT_NODE) {
+            var items = await blockToDocxParas(child, indentLevel + 1, true);
+            paras = paras.concat(items);
+          }
+        }
+        return paras;
+      }
+
+      // 表格
+      if (tag === 'TABLE') {
+        var rows = [];
+        var trs = node.querySelectorAll('tr');
+        for (i = 0; i < trs.length; i++) {
+          var tr = trs[i];
+          var cells = [];
+          var tds = tr.querySelectorAll('th, td');
+          for (j = 0; j < tds.length; j++) {
+            var td = tds[j];
+            var isHeader = td.tagName === 'TH';
+            var cellFmt = isHeader ? { bold: true } : {};
+            var cellPara = new docx.Paragraph({ children: parseInline(td, cellFmt) });
+            var cellOpts = { children: [cellPara] };
+            if (isHeader) {
+              cellOpts.shading = { type: docx.ShadingType.SOLID, color: "F5F5F5", fill: "F5F5F5" };
+            }
+            cells.push(new docx.TableCell(cellOpts));
+          }
+          if (cells.length > 0) rows.push(new docx.TableRow({ children: cells }));
+        }
+        if (rows.length > 0) {
+          return [new docx.Table({ rows: rows, width: { size: 100, type: docx.WidthType.PERCENTAGE } })];
+        }
+        return [];
+      }
+
+      // 分割线
+      if (tag === 'HR') {
+        return [makeDocxParagraph({
+          children: [],
+          border: { bottom: { style: docx.BorderStyle.SINGLE, size: 1, color: "CCCCCC", space: 1 } },
+          spacing: { before: 120, after: 120 }
+        }, isBlockquote)];
+      }
+
+      // 图片
+      if (tag === 'IMG') {
+        var src = node.getAttribute('src');
+        if (src) {
+          try {
+            var imgData;
+            if (src.startsWith('data:')) {
+              var parts = src.split(',');
+              if (parts.length > 1) {
+                var binary = atob(parts[1]);
+                imgData = new Uint8Array(binary.length);
+                for (var k = 0; k < binary.length; k++) imgData[k] = binary.charCodeAt(k);
+              }
+            } else {
+              try {
+                var resp = await fetch(src);
+                if (resp.ok) {
+                  var buf = await resp.arrayBuffer();
+                  imgData = new Uint8Array(buf);
+                }
+              } catch (e) {}
+            }
+            if (imgData) {
+              return [makeDocxParagraph({
+                children: [new docx.ImageRun({ data: imgData, transformation: { width: 400, height: 300 } })]
+              }, isBlockquote)];
+            }
+          } catch (e) {}
+        }
+        return [makeDocxParagraph({
+          children: [new docx.TextRun({ text: '[图片: ' + (node.getAttribute('alt') || src || '未知') + ']', italics: true, color: "999999" })]
+        }, isBlockquote)];
+      }
+
+      // 默认：按段落处理
+      runs = parseInline(node);
+      if (runs.length > 0) return [makeDocxParagraph({ children: runs, spacing: { after: 120 } }, isBlockquote)];
+      return [];
+    }
+
+    // 遍历 body 子节点转换为 docx 元素
+    async function bodyToDocxChildren(body) {
+      var result = [];
+      for (var i = 0; i < body.childNodes.length; i++) {
+        var node = body.childNodes[i];
+        if (node.nodeType === Node.TEXT_NODE) {
+          var t = node.textContent.trim();
+          if (t) result.push(new docx.Paragraph({ children: [new docx.TextRun({ text: t })] }));
+          continue;
+        }
+        if (node.nodeType !== Node.ELEMENT_NODE) continue;
+        var items = await blockToDocxParas(node, 0);
+        if (items && items.length > 0) result = result.concat(items);
+      }
+      return result;
+    }
+
+    // 导出 Word（真正的 OOXML DOCX 文件）
+    async function exportWord() {
+      var name = filenameInput.value.trim();
       if (!name) name = '未命名文档.md';
       name = name.replace(/\.md$/i, '').replace(/\.markdown$/i, '') + '.docx';
 
-      // 先将软换行转为硬换行（表格除外），确保导出结果正确
-      const rawMd = editor.value;
-      const md = convertSoftBreaksForExport(rawMd);
-      let bodyHtml;
+      if (typeof docx === 'undefined') {
+        showToast('DOCX 库加载失败，请检查网络连接');
+        return;
+      }
+
+      // Markdown → HTML
+      var rawMd = editor.value;
+      var md = convertSoftBreaksForExport(rawMd);
+      var bodyHtml;
       if (typeof marked !== 'undefined') {
         bodyHtml = marked.parse(md);
       } else {
-        bodyHtml = '<pre style="white-space:pre-wrap">' + escapeHtml(md) + '</pre>';
+        bodyHtml = '<pre>' + escapeHtml(md) + '</pre>';
       }
-      bodyHtml = transformOrderedListsForWord(bodyHtml);
 
-      const fullHtml = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>${escapeHtml(name.replace(/\.docx$/i, ''))}</title>
-  <style>
-    body { font-family: Arial, "微软雅黑", sans-serif; font-size: 12pt; line-height: 1.6; color: #000; text-align: justify; }
-    h1 { font-size: 20pt; font-weight: bold; margin: 18pt 0 10pt; }
-    h2 { font-size: 16pt; font-weight: bold; margin: 14pt 0 8pt; }
-    h3 { font-size: 14pt; font-weight: bold; margin: 12pt 0 6pt; }
-    h4, h5, h6 { font-size: 12pt; font-weight: bold; margin: 10pt 0 6pt; }
-    p { margin: 6pt 0; }
-    pre, code { font-family: Consolas, "Courier New", monospace; }
-    pre { background: #f5f5f5; padding: 8pt; border-radius: 4px; overflow-x: auto; }
-    code { background: #f5f5f5; padding: 1pt 3pt; border-radius: 2px; }
-    blockquote { border-left: 3px solid #ccc; margin: 6pt 0; padding: 4pt 10pt; color: #555; }
-    table { border-collapse: collapse; width: 100%; margin: 8pt 0; }
-    th, td { border: 1px solid #ccc; padding: 5pt 8pt; }
-    th { background: #f5f5f5; font-weight: bold; }
-    ul, ol { margin: 6pt 0; padding-left: 24pt; }
-    li { margin: 3pt 0; }
-    img { max-width: 100%; height: auto; }
-    hr { border: none; border-top: 1px solid #ccc; margin: 12pt 0; }
-    a { color: #0563c1; text-decoration: underline; }
-  </style>
-</head>
-<body>
-${bodyHtml}
-</body>
-</html>`;
+      // HTML → DOCX 元素
+      var parser = new DOMParser();
+      var htmlDoc = parser.parseFromString(bodyHtml, 'text/html');
+      var children = await bodyToDocxChildren(htmlDoc.body);
 
-      const blob = new Blob([fullHtml], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      // 打包为 DOCX 文档
+      var doc = new docx.Document({
+        styles: { default: { document: { run: { font: "Arial", size: 24 } } } },
+        sections: [{ children: children }]
+      });
+
+      // 生成并下载
+      var blob = await docx.Packer.toBlob(doc);
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
       a.href = url;
       a.download = name;
       document.body.appendChild(a);
@@ -1943,6 +2121,7 @@ ${bodyHtml}
       URL.revokeObjectURL(url);
       showToast(t('toastWordExported'));
     }
+
 
     // 导出 HTML：将 Markdown 渲染为独立 HTML 页面并下载
     function exportHTML() {
