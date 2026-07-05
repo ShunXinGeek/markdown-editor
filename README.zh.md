@@ -152,7 +152,7 @@ AI 时代，Markdown 这件事，本该足够简单。
 
 ```bash
 # 克隆项目
-git clone https://github.com/woyin2024/lengyi-markdown-editor.git
+git clone <your-repo-url>
 
 # 直接双击打开
 markdown-editor.html
@@ -208,15 +208,6 @@ python web-to-md-proxy.py
 
 你可以自由使用、修改、分发，如需商用请获取授权。只希望你在某个安静的午后，用它写出让自己满意的文章时，能想起这个项目的起点。
 
----
-## 👤 关于作者
-
-**冷逸**，中国 Top AI 技术媒体「沃垠AI」博主，不会写代码的 Vibe Coding 开发者，喜欢死磕 Prompt、Skills 和 Agent。
-
-- **全平台统一账户**：沃垠AI
-- **内容矩阵**：公众号、小红书、知乎、GitHub、B站、X 等
-
-欢迎关注公众号「沃垠AI」，获取更多 AI 干货：
 
 ---
 

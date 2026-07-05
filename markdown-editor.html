@@ -1,12 +1,12 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Markdown�༭��_����AI_���ݿ���</title>
+  <title>Markdown 编辑器</title>
   <style>
     :root {
-      /* ɫ��ϵͳ���ͱ��͵����� + ���Ի� */
+      /* 色彩系统：低饱和靛蓝紫 + 中性灰 */
       --bg: #f7f8fa;
       --panel-bg: #ffffff;
       --surface: #f3f5f8;
@@ -22,18 +22,18 @@
       --code-text: #e4e4e7;
       --danger: #ef4444;
 
-      /* ��Ӱ���ֲ���� */
+      /* 阴影：分层柔和 */
       --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
       --shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
       --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
       --shadow-lg: 0 16px 48px rgba(15, 23, 42, 0.12);
 
-      /* ���壺����ϵͳ���壬���߿��� */
+      /* 字体：优先系统字体，离线可用 */
       --font-sans: "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
       --font-mono: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, Menlo, monospace;
       --font-editor: "SF Pro Text", "Inter", -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
 
-      /* Բ�� */
+      /* 圆角 */
       --radius-sm: 6px;
       --radius: 10px;
       --radius-lg: 14px;
@@ -81,7 +81,7 @@
       flex-direction: column;
       height: 100vh;
     }
-    /* SVG ͼ����߶��� */
+    /* SVG 图标基线对齐 */
     .icon {
       width: 16px;
       height: 16px;
@@ -95,7 +95,7 @@
     .icon-sm { width: 14px; height: 14px; }
     .icon-lg { width: 18px; height: 18px; }
 
-    /* ������ */
+    /* 顶部栏 */
     .top-bar {
       display: flex;
       align-items: center;
@@ -220,7 +220,7 @@
       background: var(--border);
       margin: 0 4px;
     }
-    /* �༭�������� */
+    /* 编辑器工具栏 */
     .editor-toolbar {
       display: flex;
       align-items: center;
@@ -260,7 +260,7 @@
       justify-content: center;
       min-width: 15px;
     }
-    /* ���ѡ���� */
+    /* 表格选择器 */
     .table-selector-menu {
       padding: 12px;
       min-width: auto;
@@ -291,7 +291,7 @@
       font-size: 12px;
       color: var(--text-muted);
     }
-    /* ���༭�� */
+    /* 主编辑区 */
     .main {
       display: flex;
       flex: 1;
@@ -440,7 +440,7 @@
       margin: 0 auto;
       padding: 32px 40px;
     }
-    /* Ԥ����Դ��༭ */
+    /* 预览区源码编辑 */
     .preview-source {
       flex: 1;
       width: 100%;
@@ -486,7 +486,7 @@
     .toggle-btn:hover:not(.active) {
       color: var(--accent);
     }
-    /* Markdown Ԥ����ʽ */
+    /* Markdown 预览样式 */
     .preview-content h1, .preview-content h2, .preview-content h3,
     .preview-content h4, .preview-content h5, .preview-content h6 {
       margin-top: 48px;
@@ -566,7 +566,7 @@
       background: linear-gradient(90deg, transparent, var(--border), transparent);
       margin: 40px 0;
     }
-    /* ״̬�� */
+    /* 状态栏 */
     .statusbar {
       display: flex;
       align-items: center;
@@ -580,7 +580,7 @@
     .statusbar .save-hint { color: var(--accent); opacity: 0; transition: opacity .3s ease; font-weight: 500; }
     .statusbar .save-hint.show { opacity: 1; }
     .statusbar #status-right { opacity: 0.7; }
-    /* ģ̬�� */
+    /* 模态框 */
     .modal-overlay {
       position: fixed;
       inset: 0;
@@ -703,7 +703,7 @@
       border-color: var(--accent);
     }
     .modal-footer button.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: #fff; }
-    /* �ƶ��� */
+    /* 移动端 */
     @media (max-width: 768px) {
       .top-bar { padding: 8px; gap: 6px; }
       .top-bar .brand { display: none; }
@@ -735,7 +735,7 @@
       .resizer { display: none; }
       .preview-content .markdown-body { padding: 20px 24px; }
     }
-    /* ������ʾ */
+    /* 加载提示 */
     .toast {
       position: fixed;
       bottom: 56px;
@@ -755,7 +755,7 @@
       backdrop-filter: blur(8px);
     }
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-    /* �Ϸ��ļ���ʾ���� */
+    /* 拖放文件提示遮罩 */
     .drop-overlay {
       position: fixed;
       inset: 0;
@@ -789,7 +789,7 @@
       align-items: center;
       gap: 10px;
     }
-    /* ����ͼƬ */
+    /* 导出图片 */
     .export-image-stage {
       position: fixed;
       left: -99999px;
@@ -875,7 +875,7 @@
       font-size: 12px;
       color: var(--text-muted);
     }
-    /* ����ͼƬģ̬�� */
+    /* 插入图片模态框 */
     .image-modal-tabs {
       display: flex;
       gap: 8px;
@@ -933,7 +933,7 @@
       display: block;
       box-shadow: var(--shadow);
     }
-    /* ҳ��ȫ�� */
+    /* 页面全屏 */
     .app.page-fullscreen {
       position: fixed;
       top: 0;
@@ -946,7 +946,7 @@
     /* KaTeX */
     .katex { font-size: 1.1em; }
     .preview-content .katex-display { margin: 16px 0; overflow-x: auto; }
-    /* �����б� */
+    /* 任务列表 */
     .preview-content input[type="checkbox"] {
       margin-right: 6px;
       vertical-align: middle;
@@ -958,14 +958,14 @@
     .preview-content ul.task-list {
       padding-left: 1.8em;
     }
-    /* ������������ť���� */
+    /* 工具栏下拉按钮文字 */
     .top-bar button, .editor-toolbar button { white-space: nowrap; }
-    /* �����˵����붯�� */
+    /* 下拉菜单进入动画 */
     @keyframes menuIn {
       from { opacity: 0; transform: translateY(-6px); }
       to { opacity: 1; transform: translateY(0); }
     }
-    /* ��ӡ / ���� PDF */
+    /* 打印 / 导出 PDF */
     @media print {
       .top-bar, .editor-toolbar, .statusbar, .editor-pane, .resizer, .preview-pane .pane-header,
       .preview-source, .modal-overlay, .toast, .icon-sprite {
@@ -997,8 +997,6 @@
       }
       body {
         background: #fff !important;
-        font-family: Arial, "����_GB2312", sans-serif !important;
-        text-align: justify !important;
         color: #000 !important;
       }
     }
@@ -1006,7 +1004,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
 </head>
 <body data-theme="light">
-  <!-- SVG ͼ�꾫�� -->
+  <!-- SVG 图标精灵 -->
   <svg class="icon-sprite" style="position:absolute;width:0;height:0;overflow:hidden;" aria-hidden="true">
     <defs>
       <symbol id="icon-save" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></symbol>
@@ -1051,39 +1049,39 @@
   </svg>
   <div class="app">
     <div class="top-bar">
-      <span class="brand" data-i18n="brand">Markdown�༭��</span>
-      <input type="text" id="filename" value="δ�����ĵ�.md" data-i18n-title="filenameTitle" title="�ļ���">
+      <span class="brand" data-i18n="brand">Markdown编辑器</span>
+      <input type="text" id="filename" value="未命名文档.md" data-i18n-title="filenameTitle" title="文件名">
       <div class="spacer"></div>
       <div class="top-actions">
-        <button onclick="saveToLocal()" class="primary" data-i18n-title="save"><svg class="icon"><use href="#icon-save"></use></svg> <span data-i18n="save">����</span></button>
-        <label for="importFile"><svg class="icon"><use href="#icon-upload"></use></svg> <span data-i18n="importBtn">����</span></label>
+        <button onclick="saveToLocal()" class="primary" data-i18n-title="save"><svg class="icon"><use href="#icon-save"></use></svg> <span data-i18n="save">保存</span></button>
+        <label for="importFile"><svg class="icon"><use href="#icon-upload"></use></svg> <span data-i18n="importBtn">导入</span></label>
         <input type="file" id="importFile" accept=".md,.markdown,.txt" onchange="importFile(this)">
         <div class="dropdown" id="export-dropdown">
-          <button onclick="toggleExportMenu()" data-i18n-title="exportBtn"><svg class="icon"><use href="#icon-download"></use></svg> <span data-i18n="exportBtn">����</span></button>
+          <button onclick="toggleExportMenu()" data-i18n-title="exportBtn"><svg class="icon"><use href="#icon-download"></use></svg> <span data-i18n="exportBtn">导出</span></button>
           <div class="dropdown-menu" id="export-menu">
-            <div class="dropdown-item" onclick="exportFile(); closeExportMenu();" data-i18n="exportMd">���� Markdown (.md)</div>
-            <div class="dropdown-item" onclick="exportWord(); closeExportMenu();" data-i18n="exportWord">���� Word (.doc)</div>
-            <div class="dropdown-item" onclick="exportPDF(); closeExportMenu();" data-i18n="exportPdf">���� PDF (.pdf)</div>
-            <div class="dropdown-item" onclick="exportHTML(); closeExportMenu();" data-i18n="exportHtml">���� HTML (.html)</div>
-            <div class="dropdown-item" onclick="openExportImageModal(); closeExportMenu();" data-i18n="exportImage">����ͼƬ (.png)</div>
+            <div class="dropdown-item" onclick="exportFile(); closeExportMenu();" data-i18n="exportMd">导出 Markdown (.md)</div>
+            <div class="dropdown-item" onclick="exportWord(); closeExportMenu();" data-i18n="exportWord">导出 Word (.doc)</div>
+            <div class="dropdown-item" onclick="exportPDF(); closeExportMenu();" data-i18n="exportPdf">导出 PDF (.pdf)</div>
+            <div class="dropdown-item" onclick="exportHTML(); closeExportMenu();" data-i18n="exportHtml">导出 HTML (.html)</div>
+            <div class="dropdown-item" onclick="openExportImageModal(); closeExportMenu();" data-i18n="exportImage">导出图片 (.png)</div>
           </div>
         </div>
-        <button onclick="openUrlModal()" data-i18n-title="urlTitle"><svg class="icon"><use href="#icon-globe"></use></svg> <span data-i18n="webToMd">��ҳתMD</span></button>
-        <button onclick="openHelp()" data-i18n-title="helpTitle"><svg class="icon"><use href="#icon-help"></use></svg> <span data-i18n="help">����</span></button>
-        <button onclick="clearDoc()" data-i18n-title="clear"><svg class="icon"><use href="#icon-trash"></use></svg> <span data-i18n="clear">���</span></button>
+        <button onclick="openUrlModal()" data-i18n-title="urlTitle"><svg class="icon"><use href="#icon-globe"></use></svg> <span data-i18n="webToMd">网页转MD</span></button>
+        <button onclick="openHelp()" data-i18n-title="helpTitle"><svg class="icon"><use href="#icon-help"></use></svg> <span data-i18n="help">帮助</span></button>
+        <button onclick="clearDoc()" data-i18n-title="clear"><svg class="icon"><use href="#icon-trash"></use></svg> <span data-i18n="clear">清空</span></button>
         <div class="dropdown" id="lang-dropdown">
-          <button onclick="toggleLangMenu()" data-i18n-title="langLabel"><svg class="icon"><use href="#icon-globe"></use></svg> <span data-i18n="langLabel">����</span></button>
+          <button onclick="toggleLangMenu()" data-i18n-title="langLabel"><svg class="icon"><use href="#icon-globe"></use></svg> <span data-i18n="langLabel">语言</span></button>
           <div class="dropdown-menu" id="lang-menu">
-            <div class="dropdown-item" onclick="setLanguage('zh-CN'); closeLangMenu();">��������</div>
-            <div class="dropdown-item" onclick="setLanguage('zh-TW'); closeLangMenu();">���w����</div>
+            <div class="dropdown-item" onclick="setLanguage('zh-CN'); closeLangMenu();">简体中文</div>
+            <div class="dropdown-item" onclick="setLanguage('zh-TW'); closeLangMenu();">繁體中文</div>
             <div class="dropdown-item" onclick="setLanguage('en'); closeLangMenu();">English</div>
-            <div class="dropdown-item" onclick="setLanguage('ja'); closeLangMenu();">�ձ��Z</div>
-            <div class="dropdown-item" onclick="setLanguage('ko'); closeLangMenu();">???</div>
-            <div class="dropdown-item" onclick="setLanguage('es'); closeLangMenu();">Espa?ol</div>
-            <div class="dropdown-item" onclick="setLanguage('fr'); closeLangMenu();">Fran?ais</div>
+            <div class="dropdown-item" onclick="setLanguage('ja'); closeLangMenu();">日本語</div>
+            <div class="dropdown-item" onclick="setLanguage('ko'); closeLangMenu();">한국어</div>
+            <div class="dropdown-item" onclick="setLanguage('es'); closeLangMenu();">Español</div>
+            <div class="dropdown-item" onclick="setLanguage('fr'); closeLangMenu();">Français</div>
             <div class="dropdown-item" onclick="setLanguage('de'); closeLangMenu();">Deutsch</div>
-            <div class="dropdown-item" onclick="setLanguage('ru'); closeLangMenu();">������ܧڧ�</div>
-            <div class="dropdown-item" onclick="setLanguage('pt'); closeLangMenu();">Portugu��s</div>
+            <div class="dropdown-item" onclick="setLanguage('ru'); closeLangMenu();">Русский</div>
+            <div class="dropdown-item" onclick="setLanguage('pt'); closeLangMenu();">Português</div>
           </div>
         </div>
       </div>
@@ -1091,302 +1089,301 @@
 
     <div class="editor-toolbar">
       <div class="format-group">
-        <button onclick="undo()" data-i18n-title="undoTitle" title="���� Ctrl+Z"><svg class="icon"><use href="#icon-undo"></use></svg></button>
-        <button onclick="redo()" data-i18n-title="redoTitle" title="���� Ctrl+Y / Ctrl+Shift+Z"><svg class="icon"><use href="#icon-redo"></use></svg></button>
+        <button onclick="undo()" data-i18n-title="undoTitle" title="撤销 Ctrl+Z"><svg class="icon"><use href="#icon-undo"></use></svg></button>
+        <button onclick="redo()" data-i18n-title="redoTitle" title="重做 Ctrl+Y / Ctrl+Shift+Z"><svg class="icon"><use href="#icon-redo"></use></svg></button>
         <span class="divider"></span>
-        <button onclick="formatBold()" data-i18n-title="boldTitle" title="�Ӵ� Ctrl+B"><b>B</b></button>
-        <button onclick="formatItalic()" data-i18n-title="italicTitle" title="б�� Ctrl+I"><i>I</i></button>
-        <button onclick="formatUnderline()" data-i18n-title="underlineTitle" title="�»��� Ctrl+U"><u>U</u></button>
-        <button onclick="formatStrikethrough()" data-i18n-title="strikethroughTitle" title="ɾ����"><s>S</s></button>
-        <button onclick="formatSubscript()" data-i18n-title="subscriptTitle" title="�±�">x?</button>
-        <button onclick="formatSuperscript()" data-i18n-title="superscriptTitle" title="�ϱ�">x2</button>
+        <button onclick="formatBold()" data-i18n-title="boldTitle" title="加粗 Ctrl+B"><b>B</b></button>
+        <button onclick="formatItalic()" data-i18n-title="italicTitle" title="斜体 Ctrl+I"><i>I</i></button>
+        <button onclick="formatUnderline()" data-i18n-title="underlineTitle" title="下划线 Ctrl+U"><u>U</u></button>
+        <button onclick="formatStrikethrough()" data-i18n-title="strikethroughTitle" title="删除线"><s>S</s></button>
+        <button onclick="formatSubscript()" data-i18n-title="subscriptTitle" title="下标">x₂</button>
+        <button onclick="formatSuperscript()" data-i18n-title="superscriptTitle" title="上标">x²</button>
         <span class="divider"></span>
         <div class="dropdown" id="heading-dropdown">
-          <button onclick="toggleHeadingMenu()" data-i18n-title="heading" title="����">H <svg class="icon icon-sm"><use href="#icon-chevron-down"></use></svg></button>
+          <button onclick="toggleHeadingMenu()" data-i18n-title="heading" title="标题">H <svg class="icon icon-sm"><use href="#icon-chevron-down"></use></svg></button>
           <div class="dropdown-menu" id="heading-menu">
-            <div class="dropdown-item" onclick="insertHeading(1); closeHeadingMenu();" data-i18n="headingH1">H1 һ������</div>
-            <div class="dropdown-item" onclick="insertHeading(2); closeHeadingMenu();" data-i18n="headingH2">H2 ��������</div>
-            <div class="dropdown-item" onclick="insertHeading(3); closeHeadingMenu();" data-i18n="headingH3">H3 ��������</div>
-            <div class="dropdown-item" onclick="insertHeading(4); closeHeadingMenu();" data-i18n="headingH4">H4 �ļ�����</div>
-            <div class="dropdown-item" onclick="insertHeading(5); closeHeadingMenu();" data-i18n="headingH5">H5 �弶����</div>
-            <div class="dropdown-item" onclick="insertHeading(6); closeHeadingMenu();" data-i18n="headingH6">H6 ��������</div>
+            <div class="dropdown-item" onclick="insertHeading(1); closeHeadingMenu();" data-i18n="headingH1">H1 一级标题</div>
+            <div class="dropdown-item" onclick="insertHeading(2); closeHeadingMenu();" data-i18n="headingH2">H2 二级标题</div>
+            <div class="dropdown-item" onclick="insertHeading(3); closeHeadingMenu();" data-i18n="headingH3">H3 三级标题</div>
+            <div class="dropdown-item" onclick="insertHeading(4); closeHeadingMenu();" data-i18n="headingH4">H4 四级标题</div>
+            <div class="dropdown-item" onclick="insertHeading(5); closeHeadingMenu();" data-i18n="headingH5">H5 五级标题</div>
+            <div class="dropdown-item" onclick="insertHeading(6); closeHeadingMenu();" data-i18n="headingH6">H6 六级标题</div>
           </div>
         </div>
         <span class="divider"></span>
-        <button onclick="formatQuote()" data-i18n-title="quote" title="����"><svg class="icon"><use href="#icon-quote"></use></svg> <span data-i18n="quote">����</span></button>
-        <button onclick="formatUnorderedList()" data-i18n-title="unordered" title="�����б�"><svg class="icon"><use href="#icon-list"></use></svg> <span data-i18n="unordered">����</span></button>
-        <button onclick="formatOrderedList()" data-i18n-title="ordered" title="�����б�"><svg class="icon"><use href="#icon-list-numbered"></use></svg> <span data-i18n="ordered">����</span></button>
-        <button onclick="formatTaskList()" data-i18n-title="task" title="�����б�"><svg class="icon"><use href="#icon-task"></use></svg> <span data-i18n="task">����</span></button>
+        <button onclick="formatQuote()" data-i18n-title="quote" title="引用"><svg class="icon"><use href="#icon-quote"></use></svg> <span data-i18n="quote">引用</span></button>
+        <button onclick="formatUnorderedList()" data-i18n-title="unordered" title="无序列表"><svg class="icon"><use href="#icon-list"></use></svg> <span data-i18n="unordered">无序</span></button>
+        <button onclick="formatOrderedList()" data-i18n-title="ordered" title="有序列表"><svg class="icon"><use href="#icon-list-numbered"></use></svg> <span data-i18n="ordered">有序</span></button>
+        <button onclick="formatTaskList()" data-i18n-title="task" title="任务列表"><svg class="icon"><use href="#icon-task"></use></svg> <span data-i18n="task">任务</span></button>
         <span class="divider"></span>
-        <button onclick="insertCodeRow()" data-i18n-title="inlineCode" title="���ڴ���"><svg class="icon"><use href="#icon-code"></use></svg> <span data-i18n="inlineCode">���ڴ���</span></button>
-        <button onclick="insertCode()" data-i18n-title="codeBlock" title="�����"><svg class="icon"><use href="#icon-braces"></use></svg></button>
-        <button onclick="insertLink()" data-i18n-title="link" title="�������� Ctrl+K"><svg class="icon"><use href="#icon-link"></use></svg> <span data-i18n="link">����</span></button>
-        <button onclick="openImageModal()" data-i18n-title="image" title="����ͼƬ Ctrl+Shift+K"><svg class="icon"><use href="#icon-image"></use></svg> <span data-i18n="image">ͼƬ</span></button>
+        <button onclick="insertCodeRow()" data-i18n-title="inlineCode" title="行内代码"><svg class="icon"><use href="#icon-code"></use></svg> <span data-i18n="inlineCode">行内代码</span></button>
+        <button onclick="insertCode()" data-i18n-title="codeBlock" title="代码块"><svg class="icon"><use href="#icon-braces"></use></svg></button>
+        <button onclick="insertLink()" data-i18n-title="link" title="插入链接 Ctrl+K"><svg class="icon"><use href="#icon-link"></use></svg> <span data-i18n="link">链接</span></button>
+        <button onclick="openImageModal()" data-i18n-title="image" title="插入图片 Ctrl+Shift+K"><svg class="icon"><use href="#icon-image"></use></svg> <span data-i18n="image">图片</span></button>
         <div class="dropdown" id="table-dropdown">
-          <button onclick="toggleTableMenu()" data-i18n-title="table" title="������"><svg class="icon"><use href="#icon-table"></use></svg> <span data-i18n="table">���</span></button>
+          <button onclick="toggleTableMenu()" data-i18n-title="table" title="插入表格"><svg class="icon"><use href="#icon-table"></use></svg> <span data-i18n="table">表格</span></button>
           <div class="dropdown-menu table-selector-menu" id="table-menu">
             <div class="table-grid" id="table-grid"></div>
-            <div class="table-size-label" id="table-size-label">0 �� �� 0 ��</div>
+            <div class="table-size-label" id="table-size-label">0 行 × 0 列</div>
           </div>
         </div>
-        <button onclick="openFindModal()" data-i18n-title="find" title="�����滻 Ctrl+F"><svg class="icon"><use href="#icon-search"></use></svg> <span data-i18n="find">����</span></button>
-        <button onclick="openMermaidModal()" data-i18n-title="mermaid" title="���� Mermaid ͼ��"><svg class="icon"><use href="#icon-mermaid"></use></svg> <span data-i18n="mermaid">Mermaid</span></button>
+        <button onclick="openFindModal()" data-i18n-title="find" title="查找替换 Ctrl+F"><svg class="icon"><use href="#icon-search"></use></svg> <span data-i18n="find">查找</span></button>
+        <button onclick="openMermaidModal()" data-i18n-title="mermaid" title="插入 Mermaid 图表"><svg class="icon"><use href="#icon-mermaid"></use></svg> <span data-i18n="mermaid">Mermaid</span></button>
       </div>
       <div class="editor-actions">
         <div class="dropdown" id="view-dropdown">
-          <button onclick="toggleViewMenu()" data-i18n-title="view" title="��ͼ����"><svg class="icon"><use href="#icon-layout"></use></svg> <span data-i18n="view">��ͼ</span> <svg class="icon icon-sm"><use href="#icon-chevron-down"></use></svg></button>
+          <button onclick="toggleViewMenu()" data-i18n-title="view" title="视图布局"><svg class="icon"><use href="#icon-layout"></use></svg> <span data-i18n="view">视图</span> <svg class="icon icon-sm"><use href="#icon-chevron-down"></use></svg></button>
           <div class="dropdown-menu" id="view-menu">
-            <div class="dropdown-item" onclick="setLayoutMode('both'); closeViewMenu();" data-i18n="viewBoth">�༭ + Ԥ��</div>
-            <div class="dropdown-item" onclick="setLayoutMode('edit'); closeViewMenu();" data-i18n="viewEdit">���༭</div>
-            <div class="dropdown-item" onclick="setLayoutMode('preview'); closeViewMenu();" data-i18n="viewPreview">��Ԥ��</div>
-            <div class="dropdown-item" onclick="togglePageFullscreen(); closeViewMenu();" data-i18n="pageFullscreen">ҳ��ȫ��</div>
-            <div class="dropdown-item" onclick="toggleFullscreen(); closeViewMenu();" data-i18n="systemFullscreen">ϵͳȫ��</div>
+            <div class="dropdown-item" onclick="setLayoutMode('both'); closeViewMenu();" data-i18n="viewBoth">编辑 + 预览</div>
+            <div class="dropdown-item" onclick="setLayoutMode('edit'); closeViewMenu();" data-i18n="viewEdit">仅编辑</div>
+            <div class="dropdown-item" onclick="setLayoutMode('preview'); closeViewMenu();" data-i18n="viewPreview">仅预览</div>
+            <div class="dropdown-item" onclick="togglePageFullscreen(); closeViewMenu();" data-i18n="pageFullscreen">页面全屏</div>
+            <div class="dropdown-item" onclick="toggleFullscreen(); closeViewMenu();" data-i18n="systemFullscreen">系统全屏</div>
           </div>
         </div>
-        <button onclick="toggleTheme()" data-i18n-title="theme" title="�л�����"><svg class="icon"><use href="#icon-sun"></use></svg> <span data-i18n="theme">����</span></button>
+        <button onclick="toggleTheme()" data-i18n-title="theme" title="切换主题"><svg class="icon"><use href="#icon-sun"></use></svg> <span data-i18n="theme">主题</span></button>
       </div>
     </div>
 
     <div class="main">
       <div class="pane editor-pane">
         <div class="pane-header">
-          <span class="pane-title" data-i18n="editorPaneTitle">�༭</span>
-          <span data-i18n="editorPaneHint">֧�� Markdown �﷨</span>
-          <button class="collapse-btn" id="editor-collapse-btn" onclick="togglePane('editor')" title="����༭��"><svg class="icon icon-sm"><use href="#icon-chevron-left"></use></svg></button>
+          <span class="pane-title" data-i18n="editorPaneTitle">编辑</span>
+          <span data-i18n="editorPaneHint">支持 Markdown 语法</span>
+          <button class="collapse-btn" id="editor-collapse-btn" onclick="togglePane('editor')" title="收起编辑区"><svg class="icon icon-sm"><use href="#icon-chevron-left"></use></svg></button>
         </div>
-        <textarea id="editor" data-i18n-placeholder="editorPlaceholder" placeholder="��ʼ���� Markdown..." spellcheck="false"></textarea>
+        <textarea id="editor" data-i18n-placeholder="editorPlaceholder" placeholder="开始输入 Markdown..." spellcheck="false"></textarea>
       </div>
       <div class="resizer" id="resizer"></div>
       <div class="pane preview-pane">
         <div class="pane-header">
-          <button class="collapse-btn" id="preview-collapse-btn" onclick="togglePane('preview')" title="����Ԥ����"><svg class="icon icon-sm"><use href="#icon-chevron-right"></use></svg></button>
-          <span class="pane-title" data-i18n="previewPaneTitle">ʵʱԤ��</span>
+          <button class="collapse-btn" id="preview-collapse-btn" onclick="togglePane('preview')" title="收起预览区"><svg class="icon icon-sm"><use href="#icon-chevron-right"></use></svg></button>
+          <span class="pane-title" data-i18n="previewPaneTitle">实时预览</span>
           <div class="preview-toggle">
-            <button class="toggle-btn active" data-mode="preview" onclick="setPreviewMode('preview')" data-i18n="previewTab">Ԥ��</button>
-            <button class="toggle-btn" data-mode="source" onclick="setPreviewMode('source')" data-i18n="sourceTab">Դ��</button>
+            <button class="toggle-btn active" data-mode="preview" onclick="setPreviewMode('preview')" data-i18n="previewTab">预览</button>
+            <button class="toggle-btn" data-mode="source" onclick="setPreviewMode('source')" data-i18n="sourceTab">源码</button>
           </div>
-          <span id="word-count">0 ��</span>
+          <span id="word-count">0 字</span>
         </div>
         <div class="preview-content" id="preview"></div>
-        <textarea id="preview-source" class="preview-source" data-i18n-placeholder="previewSourcePlaceholder" placeholder="�ڴ˱༭ Markdown Դ��..." spellcheck="false"></textarea>
+        <textarea id="preview-source" class="preview-source" data-i18n-placeholder="previewSourcePlaceholder" placeholder="在此编辑 Markdown 源码..." spellcheck="false"></textarea>
       </div>
     </div>
 
     <div class="statusbar">
-      <span id="status-left">�Զ�����������</span>
-      <span class="save-hint" id="save-hint">? �ѱ���</span>
-      <span id="status-right">Ctrl+S ���� �� Ctrl+B �Ӵ� �� Ctrl+I б�� �� Ctrl+U �»��� �� Ctrl+Z ���� �� Ctrl+Y ����</span>
+      <span id="status-left">自动保存已启用</span>
+      <span class="save-hint" id="save-hint">✓ 已保存</span>
+      <span id="status-right">Ctrl+S 保存 · Ctrl+B 加粗 · Ctrl+I 斜体 · Ctrl+U 下划线 · Ctrl+Z 撤销 · Ctrl+Y 重做</span>
     </div>
 
-    <!-- �Ϸ��ļ���ʾ���� -->
+    <!-- 拖放文件提示遮罩 -->
     <div class="drop-overlay" id="drop-overlay">
-      <div class="drop-message"><svg class="icon icon-lg"><use href="#icon-upload-cloud"></use></svg> <span data-i18n="dropMessage">�ͷ��Դ��ļ������ͼƬ</span></div>
+      <div class="drop-message"><svg class="icon icon-lg"><use href="#icon-upload-cloud"></use></svg> <span data-i18n="dropMessage">释放以打开文件或插入图片</span></div>
     </div>
   </div>
 
   <div class="toast" id="toast"></div>
 
-  <!-- ʹ�ð���ģ̬�� -->
+  <!-- 使用帮助模态框 -->
   <div class="modal-overlay" id="help-modal">
     <div class="modal">
       <div class="modal-header">
-        <h3><svg class="icon icon-lg"><use href="#icon-book"></use></svg> <span data-i18n="helpTitle">ʹ�ð���</span></h3>
+        <h3><svg class="icon icon-lg"><use href="#icon-book"></use></svg> <span data-i18n="helpTitle">使用帮助</span></h3>
         <button onclick="closeHelp()"><svg class="icon"><use href="#icon-close"></use></svg></button>
       </div>
       <div class="modal-body" id="help-body">
-        <p>����һ���������õ������ Markdown �༭�������д�����Ҳ�ʵʱԤ�������ݻ��Զ���������������أ��´δ��Զ��ָ���</p>
+        <p>这是一个即开即用的浏览器 Markdown 编辑器：左侧写作，右侧实时预览。内容会自动保存在浏览器本地，下次打开自动恢复。</p>
 
-        <p><b>��ʼд��</b></p>
+        <p><b>开始写作</b></p>
         <ul>
-          <li>��������� Markdown���Ҳ�ͬ����Ⱦ��</li>
-          <li>�ù�������ť���ٲ�����⡢�Ӵ֡��б�����á����롢���ӡ�ͼƬ�����ȡ�</li>
-          <li>ѡ�������ٵ��ʽ��ť�����Զ��������滻ѡ����</li>
+          <li>在左侧输入 Markdown，右侧同步渲染。</li>
+          <li>用工具栏按钮快速插入标题、加粗、列表、引用、代码、链接、图片、表格等。</li>
+          <li>选中文字再点格式按钮，可自动包裹或替换选区。</li>
         </ul>
 
-        <p><b>������ͼ</b></p>
+        <p><b>调整视图</b></p>
         <ul>
-          <li>�϶��м�ָ��ߵ������ҿ�ȣ�������������۵���ť�����չ������</li>
-          <li>����������ͼ�����л����༭ + Ԥ�� / ���༭ / ��Ԥ������</li>
-          <li>�Ҳඥ���ġ�Դ�롹��ǩ��ֱ�Ӹ�Դ�룬�лء�Ԥ������Ч����</li>
+          <li>拖动中间分隔线调整左右宽度；点击标题栏的折叠按钮收起或展开区域。</li>
+          <li>工具栏「视图」可切换“编辑 + 预览 / 仅编辑 / 仅预览”。</li>
+          <li>右侧顶部的「源码」标签可直接改源码，切回「预览」看效果。</li>
         </ul>
 
-        <p><b>���桢�����뵼��</b></p>
+        <p><b>保存、导入与导出</b></p>
         <ul>
-          <li>�� <code>Ctrl+S</code> ��㡸���桹��ť���༭��ÿ 500ms �Զ�����һ�Ρ�</li>
-          <li>�㡸���롹���뱾�� .md / .txt����ֱ�Ӱ��ļ��Ͻ����ڡ�</li>
-          <li>�㡸���������� Markdown��HTML��Word��PDF����ӡ���Ϊ����ͼƬ��</li>
+          <li>按 <code>Ctrl+S</code> 或点「保存」按钮；编辑器每 500ms 自动保存一次。</li>
+          <li>点「导入」导入本地 .md / .txt，或直接把文件拖进窗口。</li>
+          <li>点「导出」导出 Markdown、HTML、Word、PDF（打印另存为）或图片。</li>
         </ul>
 
-        <p><b>ͼƬ�빫ʽ</b></p>
+        <p><b>图片与公式</b></p>
         <ul>
-          <li>��������ͼƬ��֧�����Ӳ���򱾵��ϴ�������ͼƬ��תΪ Base64 Ƕ���ĵ�����������ʹ�á�</li>
-          <li>֧�� <code>$...$</code> ���ڹ�ʽ�� <code>$$...$$</code> �鼶��ʽ��</li>
+          <li>工具栏「图片」支持链接插入或本地上传；本地图片会转为 Base64 嵌入文档，方便离线使用。</li>
+          <li>支持 <code>$...$</code> 行内公式和 <code>$$...$$</code> 块级公式。</li>
         </ul>
 
-        <p><b>��ҳת Markdown</b></p>
+        <p><b>网页转 Markdown</b></p>
         <ul>
-          <li>�㡸��ҳת MD��������ҳ���ӣ����Զ���ȡ���ġ�</li>
-          <li>֪����΢�Ź��ںŵȽ��鹴ѡ��ʹ�ñ��ش������������ͬĿ¼�� <code>web-to-md-proxy.py</code>��</li>
-          <li>��Ҫ��¼��ҳ�棬������ <code>python web-to-md-proxy.py --bookmark</code> ������ǩС������ȡ��</li>
+          <li>点「网页转 MD」输入网页链接，可自动提取正文。</li>
+          <li>知乎、微信公众号等建议勾选「使用本地代理」，先运行同目录的 <code>web-to-md-proxy.py</code>。</li>
+          <li>需要登录的页面，可运行 <code>python web-to-md-proxy.py --bookmark</code> 生成书签小工具提取。</li>
         </ul>
 
-        <p><b>���ÿ�ݼ�</b>��<code>Ctrl+S</code> ���棬<code>Ctrl+Z</code> ������<code>Ctrl+Y / Ctrl+Shift+Z</code> ������<code>Ctrl+B</code> �Ӵ֣�<code>Ctrl+I</code> б�壬<code>Ctrl+U</code> �»��ߣ�<code>Ctrl+K</code> ���ӣ�<code>Ctrl+Shift+K</code> ͼƬ��<code>Ctrl+F</code> ���ң�<code>Ctrl+H</code> �滻��<code>Tab</code> ���� 4 �ո�������</p>
+        <p><b>常用快捷键</b>：<code>Ctrl+S</code> 保存，<code>Ctrl+Z</code> 撤销，<code>Ctrl+Y / Ctrl+Shift+Z</code> 重做，<code>Ctrl+B</code> 加粗，<code>Ctrl+I</code> 斜体，<code>Ctrl+U</code> 下划线，<code>Ctrl+K</code> 链接，<code>Ctrl+Shift+K</code> 图片，<code>Ctrl+F</code> 查找，<code>Ctrl+H</code> 替换，<code>Tab</code> 插入 4 空格缩进。</p>
 
-        <p style="color:var(--text-muted);font-size:12px;">���༭���ɡ�����AI�����������ݿ��������ܽ�������ϵ΢�ţ�lengcp2013</p>
       </div>
       <div class="modal-footer">
-        <button onclick="closeHelp()" class="primary" data-i18n="helpOk">֪����</button>
+        <button onclick="closeHelp()" class="primary" data-i18n="helpOk">知道了</button>
       </div>
     </div>
   </div>
 
-  <!-- ��ҳת Markdown ģ̬�� -->
+  <!-- 网页转 Markdown 模态框 -->
   <div class="modal-overlay" id="url-modal">
     <div class="modal">
       <div class="modal-header">
-        <h3><svg class="icon icon-lg"><use href="#icon-globe"></use></svg> <span data-i18n="urlTitle">��ҳת Markdown</span></h3>
+        <h3><svg class="icon icon-lg"><use href="#icon-globe"></use></svg> <span data-i18n="urlTitle">网页转 Markdown</span></h3>
         <button onclick="closeUrlModal()"><svg class="icon"><use href="#icon-close"></use></svg></button>
       </div>
       <div class="modal-body">
-        <label for="url-input" data-i18n="urlLabel">��ҳ��ַ</label>
+        <label for="url-input" data-i18n="urlLabel">网页地址</label>
         <input type="url" id="url-input" data-i18n-placeholder="urlPlaceholder" placeholder="https://example.com/article">
         <div style="display:flex;align-items:center;gap:8px;margin:8px 0 10px;">
           <input type="checkbox" id="use-local-proxy" style="width:auto;margin:0;" onchange="toggleProxyInput()">
-          <label for="use-local-proxy" style="display:inline;margin:0;font-weight:normal;cursor:pointer;" data-i18n="useProxy">ʹ�ñ��ش�����Ƽ����ɽ��֪��/΢�Ź��ںţ�</label>
+          <label for="use-local-proxy" style="display:inline;margin:0;font-weight:normal;cursor:pointer;" data-i18n="useProxy">使用本地代理（推荐，可解决知乎/微信公众号）</label>
         </div>
-        <input type="url" id="proxy-url" value="http://localhost:8765/fetch" data-i18n-placeholder="proxyPlaceholder" placeholder="���ش����ַ" style="display:none;margin-bottom:10px;">
-        <button onclick="fetchUrl()" class="primary" data-i18n="fetchBtn">���Ի�ȡ</button>
+        <input type="url" id="proxy-url" value="http://localhost:8765/fetch" data-i18n-placeholder="proxyPlaceholder" placeholder="本地代理地址" style="display:none;margin-bottom:10px;">
+        <button onclick="fetchUrl()" class="primary" data-i18n="fetchBtn">尝试获取</button>
         <div id="url-status" style="margin-top:10px;font-size:13px;color:var(--text-muted);"></div>
         <div id="manual-area" style="display:none;margin-top:14px;">
-          <label for="manual-html" data-i18n="manualLabel">��ҳ HTML Դ�루�ֶ�ճ����</label>
-          <textarea id="manual-html" rows="6" data-i18n-placeholder="manualPlaceholder" placeholder="��������д�Ŀ����ҳ �� �Ҽ����鿴��ҳԴ���롹�� ȫѡ���� �� ճ�����˴�"></textarea>
+          <label for="manual-html" data-i18n="manualLabel">网页 HTML 源码（手动粘贴）</label>
+          <textarea id="manual-html" rows="6" data-i18n-placeholder="manualPlaceholder" placeholder="在浏览器中打开目标网页 → 右键「查看网页源代码」→ 全选复制 → 粘贴到此处"></textarea>
         </div>
       </div>
       <div class="modal-footer">
-        <button onclick="closeUrlModal()" data-i18n="cancel">ȡ��</button>
-        <button onclick="convertAndInsert()" class="primary" data-i18n="convertInsert">ת��������</button>
+        <button onclick="closeUrlModal()" data-i18n="cancel">取消</button>
+        <button onclick="convertAndInsert()" class="primary" data-i18n="convertInsert">转换并插入</button>
       </div>
     </div>
   </div>
 
-  <!-- �������滻ģ̬�� -->
+  <!-- 查找与替换模态框 -->
   <div class="modal-overlay" id="find-modal">
     <div class="modal" style="max-width: 440px;">
       <div class="modal-header">
-        <h3><svg class="icon icon-lg"><use href="#icon-search"></use></svg> <span data-i18n="findTitle">�������滻</span></h3>
+        <h3><svg class="icon icon-lg"><use href="#icon-search"></use></svg> <span data-i18n="findTitle">查找与替换</span></h3>
         <button onclick="closeFindModal()"><svg class="icon"><use href="#icon-close"></use></svg></button>
       </div>
       <div class="modal-body">
-        <label for="find-input" data-i18n="findLabel">����</label>
-        <input type="text" id="find-input" data-i18n-placeholder="findPlaceholder" placeholder="Ҫ���ҵ�����">
-        <label for="replace-input" data-i18n="replaceLabel">�滻Ϊ</label>
-        <input type="text" id="replace-input" data-i18n-placeholder="replacePlaceholder" placeholder="�滻�������">
+        <label for="find-input" data-i18n="findLabel">查找</label>
+        <input type="text" id="find-input" data-i18n-placeholder="findPlaceholder" placeholder="要查找的内容">
+        <label for="replace-input" data-i18n="replaceLabel">替换为</label>
+        <input type="text" id="replace-input" data-i18n-placeholder="replacePlaceholder" placeholder="替换后的内容">
         <div id="find-status" style="margin-top: 8px; font-size: 13px; color: var(--text-muted);"></div>
       </div>
       <div class="modal-footer">
-        <button onclick="closeFindModal()" data-i18n="cancel">�ر�</button>
-        <button onclick="replaceAll()" data-i18n="replaceAll">ȫ���滻</button>
-        <button onclick="replaceOne()" data-i18n="replaceOne">�滻</button>
-        <button onclick="findNext()" class="primary" data-i18n="findNext">������һ��</button>
+        <button onclick="closeFindModal()" data-i18n="cancel">关闭</button>
+        <button onclick="replaceAll()" data-i18n="replaceAll">全部替换</button>
+        <button onclick="replaceOne()" data-i18n="replaceOne">替换</button>
+        <button onclick="findNext()" class="primary" data-i18n="findNext">查找下一个</button>
       </div>
     </div>
   </div>
 
-  <!-- ����ͼƬģ̬�� -->
+  <!-- 导出图片模态框 -->
   <div class="modal-overlay" id="export-image-modal">
     <div class="modal" style="max-width: 640px;">
       <div class="modal-header">
-        <h3><svg class="icon icon-lg"><use href="#icon-image"></use></svg> <span data-i18n="exportImageTitle">����ͼƬ</span></h3>
+        <h3><svg class="icon icon-lg"><use href="#icon-image"></use></svg> <span data-i18n="exportImageTitle">导出图片</span></h3>
         <button onclick="closeExportImageModal()"><svg class="icon"><use href="#icon-close"></use></svg></button>
       </div>
       <div class="modal-body">
-        <label data-i18n="ratioLabel">�������</label>
+        <label data-i18n="ratioLabel">分享比例</label>
         <div class="ratio-grid">
-          <button class="ratio-btn active" data-ratio="9:16" onclick="selectImageRatio('9:16')">9:16<br><small data-i18n="ratio9_16">�ֻ�����/����</small></button>
-          <button class="ratio-btn" data-ratio="4:5" onclick="selectImageRatio('4:5')">4:5<br><small data-i18n="ratio4_5">С����/IG</small></button>
-          <button class="ratio-btn" data-ratio="3:4" onclick="selectImageRatio('3:4')">3:4<br><small data-i18n="ratio3_4">��ͼ</small></button>
-          <button class="ratio-btn" data-ratio="1:1" onclick="selectImageRatio('1:1')">1:1<br><small data-i18n="ratio1_1">����</small></button>
-          <button class="ratio-btn" data-ratio="16:9" onclick="selectImageRatio('16:9')">16:9<br><small data-i18n="ratio16_9">��ͼ</small></button>
+          <button class="ratio-btn active" data-ratio="9:16" onclick="selectImageRatio('9:16')">9:16<br><small data-i18n="ratio9_16">手机竖屏/故事</small></button>
+          <button class="ratio-btn" data-ratio="4:5" onclick="selectImageRatio('4:5')">4:5<br><small data-i18n="ratio4_5">小红书/IG</small></button>
+          <button class="ratio-btn" data-ratio="3:4" onclick="selectImageRatio('3:4')">3:4<br><small data-i18n="ratio3_4">竖图</small></button>
+          <button class="ratio-btn" data-ratio="1:1" onclick="selectImageRatio('1:1')">1:1<br><small data-i18n="ratio1_1">方形</small></button>
+          <button class="ratio-btn" data-ratio="16:9" onclick="selectImageRatio('16:9')">16:9<br><small data-i18n="ratio16_9">横图</small></button>
         </div>
         <div class="option-row">
           <input type="checkbox" id="image-crop-fit" onchange="renderExportImagePreview()">
-          <label for="image-crop-fit" data-i18n="cropLabel">����ʱ�ü�Ϊ�̶�������Ĭ�����ɳ�ͼ��</label>
+          <label for="image-crop-fit" data-i18n="cropLabel">过长时裁剪为固定比例（默认生成长图）</label>
         </div>
-        <label data-i18n="previewLabel">Ԥ��</label>
+        <label data-i18n="previewLabel">预览</label>
         <div id="export-image-preview-wrap">
-          <img id="export-image-preview" alt="����Ԥ��" data-i18n-alt="exportImagePreviewAlt" style="display:none;">
+          <img id="export-image-preview" alt="导出预览" data-i18n-alt="exportImagePreviewAlt" style="display:none;">
         </div>
-        <p class="hint" data-i18n="exportImageHint">���ݽϳ�ʱ�������ݸ߶����ɳ�ͼ�������ֻ��Ķ���</p>
+        <p class="hint" data-i18n="exportImageHint">内容较长时将按内容高度生成长图，方便手机阅读。</p>
       </div>
       <div class="modal-footer">
-        <button onclick="closeExportImageModal()" data-i18n="cancel">ȡ��</button>
-        <button onclick="renderExportImagePreview()" data-i18n="refreshPreview">ˢ��Ԥ��</button>
-        <button onclick="downloadExportImage()" class="primary" data-i18n="downloadPng">���� PNG</button>
+        <button onclick="closeExportImageModal()" data-i18n="cancel">取消</button>
+        <button onclick="renderExportImagePreview()" data-i18n="refreshPreview">刷新预览</button>
+        <button onclick="downloadExportImage()" class="primary" data-i18n="downloadPng">下载 PNG</button>
       </div>
     </div>
   </div>
 
-  <!-- ����ͼƬģ̬�� -->
+  <!-- 插入图片模态框 -->
   <div class="modal-overlay" id="image-modal">
     <div class="modal" style="max-width: 520px;">
       <div class="modal-header">
-        <h3><svg class="icon icon-lg"><use href="#icon-image"></use></svg> <span data-i18n="imageTitle">����ͼƬ</span></h3>
+        <h3><svg class="icon icon-lg"><use href="#icon-image"></use></svg> <span data-i18n="imageTitle">插入图片</span></h3>
         <button onclick="closeImageModal()"><svg class="icon"><use href="#icon-close"></use></svg></button>
       </div>
       <div class="modal-body">
         <div class="image-modal-tabs">
-          <button type="button" class="image-tab active" data-tab="url" onclick="switchImageTab('url')" data-i18n="imageTabUrl">����</button>
-          <button type="button" class="image-tab" data-tab="upload" onclick="switchImageTab('upload')" data-i18n="imageTabUpload">�����ϴ�</button>
+          <button type="button" class="image-tab active" data-tab="url" onclick="switchImageTab('url')" data-i18n="imageTabUrl">链接</button>
+          <button type="button" class="image-tab" data-tab="upload" onclick="switchImageTab('upload')" data-i18n="imageTabUpload">本地上传</button>
         </div>
         <div class="image-tab-panel active" id="image-tab-url">
-          <label for="image-url-input" data-i18n="imageUrlLabel">ͼƬ����</label>
+          <label for="image-url-input" data-i18n="imageUrlLabel">图片链接</label>
           <input type="url" id="image-url-input" data-i18n-placeholder="imageUrlPlaceholder" placeholder="https://example.com/image.png">
-          <label for="image-url-alt" data-i18n="imageAltLabel">��������</label>
-          <input type="text" id="image-url-alt" data-i18n-placeholder="imageAltPlaceholder" placeholder="ͼƬ����">
+          <label for="image-url-alt" data-i18n="imageAltLabel">描述文字</label>
+          <input type="text" id="image-url-alt" data-i18n-placeholder="imageAltPlaceholder" placeholder="图片描述">
         </div>
         <div class="image-tab-panel" id="image-tab-upload">
           <div class="upload-area" id="image-upload-area">
-            <p data-i18n="uploadArea">���ѡ�����קͼƬ���˴�</p>
+            <p data-i18n="uploadArea">点击选择或拖拽图片到此处</p>
             <input type="file" id="image-file-input" accept="image/*" onchange="handleImageFileSelect(this)">
           </div>
           <div id="image-upload-preview" class="upload-preview"></div>
-          <label for="image-upload-alt" data-i18n="imageAltLabel">��������</label>
-          <input type="text" id="image-upload-alt" data-i18n-placeholder="imageAltPlaceholder" placeholder="ͼƬ����">
+          <label for="image-upload-alt" data-i18n="imageAltLabel">描述文字</label>
+          <input type="text" id="image-upload-alt" data-i18n-placeholder="imageAltPlaceholder" placeholder="图片描述">
         </div>
-        <p class="hint" data-i18n="imageHint">����ͼƬ���� Base64 Ƕ���ĵ����ļ��������Ӱ�����ܺͱ��档</p>
+        <p class="hint" data-i18n="imageHint">本地图片将以 Base64 嵌入文档，文件过大可能影响性能和保存。</p>
       </div>
       <div class="modal-footer">
-        <button onclick="closeImageModal()" data-i18n="cancel">ȡ��</button>
-        <button onclick="confirmImageInsert()" class="primary" data-i18n="insert">����</button>
+        <button onclick="closeImageModal()" data-i18n="cancel">取消</button>
+        <button onclick="confirmImageInsert()" class="primary" data-i18n="insert">插入</button>
       </div>
     </div>
   </div>
 
-  <!-- ���� Mermaid ģ̬�� -->
+  <!-- 插入 Mermaid 模态框 -->
   <div class="modal-overlay" id="mermaid-modal">
     <div class="modal" style="max-width: 560px;">
       <div class="modal-header">
-        <h3><svg class="icon icon-lg"><use href="#icon-mermaid"></use></svg> <span data-i18n="mermaidTitle">���� Mermaid ͼ��</span></h3>
+        <h3><svg class="icon icon-lg"><use href="#icon-mermaid"></use></svg> <span data-i18n="mermaidTitle">插入 Mermaid 图表</span></h3>
         <button onclick="closeMermaidModal()"><svg class="icon"><use href="#icon-close"></use></svg></button>
       </div>
       <div class="modal-body">
-        <label for="mermaid-type" data-i18n="mermaidTypeLabel">ͼ������</label>
+        <label for="mermaid-type" data-i18n="mermaidTypeLabel">图表类型</label>
         <select id="mermaid-type" onchange="updateMermaidTemplate()">
-          <option value="mindmap" data-i18n="mermaidTypeMindmap">˼ά��ͼ</option>
-          <option value="flowchart" data-i18n="mermaidTypeFlowchart">����ͼ</option>
+          <option value="mindmap" data-i18n="mermaidTypeMindmap">思维导图</option>
+          <option value="flowchart" data-i18n="mermaidTypeFlowchart">流程图</option>
         </select>
-        <label for="mermaid-code" data-i18n="mermaidCodeLabel">Mermaid Դ��</label>
-        <textarea id="mermaid-code" rows="10" data-i18n-placeholder="mermaidCodePlaceholder" placeholder="mindmap\n  root((����))\n    ������ A\n    ������ B"></textarea>
-        <p class="hint" data-i18n="mermaidHint">֧�� Mermaid �﷨���������Ԥ�����Զ���Ⱦ��</p>
+        <label for="mermaid-code" data-i18n="mermaidCodeLabel">Mermaid 源码</label>
+        <textarea id="mermaid-code" rows="10" data-i18n-placeholder="mermaidCodePlaceholder" placeholder="mindmap\n  root((主题))\n    子主题 A\n    子主题 B"></textarea>
+        <p class="hint" data-i18n="mermaidHint">支持 Mermaid 语法，插入后将在预览区自动渲染。</p>
       </div>
       <div class="modal-footer">
-        <button onclick="closeMermaidModal()" data-i18n="cancel">ȡ��</button>
-        <button onclick="confirmMermaidInsert()" class="primary" data-i18n="insert">����</button>
+        <button onclick="closeMermaidModal()" data-i18n="cancel">取消</button>
+        <button onclick="confirmMermaidInsert()" class="primary" data-i18n="insert">插入</button>
       </div>
     </div>
   </div>
 
-  <!-- Marked.js�����Լ 40KB��CDN ���أ�����Ҳ�ɱ༭��Ԥ������Ϊ���ı��� -->
+  <!-- Marked.js：体积约 40KB，CDN 加载，离线也可编辑（预览降级为纯文本） -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@3.5.0/dist/dom-to-image-more.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
@@ -1472,7 +1469,7 @@
       const saveHint = document.getElementById('save-hint');
       if (statusLeft) statusLeft.textContent = t('autosaveEnabled');
       if (statusRight) statusRight.textContent = t('statusShortcuts');
-      if (saveHint) saveHint.textContent = '? ' + t('saved');
+      if (saveHint) saveHint.textContent = '✓ ' + t('saved');
     }
 
     function toggleLangMenu() {
@@ -1592,7 +1589,7 @@
     window.addEventListener('mouseup', stopResize);
     window.addEventListener('touchend', stopResize);
 
-    // ͬ������
+    // 同步滚动
     let isSyncingScroll = false;
 
     function syncScroll(source, target) {
@@ -1609,7 +1606,7 @@
     editor.addEventListener('scroll', () => syncScroll(editor, preview));
     preview.addEventListener('scroll', () => syncScroll(preview, editor));
 
-    // ��ʼ�����ָ����ݡ��ļ���������
+    // 初始化：恢复内容、文件名、主题
     function init() {
       const savedLang = localStorage.getItem(LANG_KEY);
       if (savedLang && i18n[savedLang]) currentLang = savedLang;
@@ -1648,12 +1645,12 @@
       applyPaneStates();
       setPreviewMode(previewMode);
 
-      // ��ʼ����ʷ��¼
+      // 初始化历史记录
       historyStack = [editor.value];
       historyIndex = 0;
       lastHistoryText = editor.value;
 
-      // Ĭ�ϴ�Ϊ�༭ + Ԥ��˫�������ָ��û���ȷ�ġ����༭����˫����״̬
+      // 默认打开为编辑 + 预览双栏；仅恢复用户明确的“仅编辑”或“双栏”状态
       const savedLayoutMode = localStorage.getItem(LAYOUT_MODE_KEY);
       if (savedLayoutMode === 'edit' || savedLayoutMode === 'both') {
         setLayoutMode(savedLayoutMode);
@@ -1662,7 +1659,7 @@
       }
       updateViewMenuLabel();
 
-      // �ָ�ҳ��ȫ��
+      // 恢复页面全屏
       if (localStorage.getItem(PAGE_FULLSCREEN_KEY) === 'true') {
         document.querySelector('.app').classList.add('page-fullscreen');
         document.body.classList.add('page-fullscreen-active');
@@ -1674,7 +1671,7 @@
       applyLanguage();
     }
 
-    // ��ȾԤ��
+    // 渲染预览
     function updatePreview() {
       let text = editor.value;
       let placeholders = [];
@@ -1758,14 +1755,14 @@
       return div.innerHTML;
     }
 
-    // ͳ������
+    // 统计字数
     function updateCount() {
       const text = editor.value;
       const count = text.replace(/\s/g, '').length;
       wordCount.textContent = t('wordCount', count);
     }
 
-    // �л�Ԥ��/Դ��ģʽ
+    // 切换预览/源码模式
     function setPreviewMode(mode) {
       previewMode = mode;
       localStorage.setItem(PREVIEW_MODE_KEY, previewMode);
@@ -1787,7 +1784,7 @@
       }
     }
 
-    // �Զ�����
+    // 自动保存
     let saveTimer;
     function autoSave() {
       clearTimeout(saveTimer);
@@ -1799,12 +1796,12 @@
     }
 
     function showSaveHint() {
-      saveHint.textContent = '? ' + t('saved');
+      saveHint.textContent = '✓ ' + t('saved');
       saveHint.classList.add('show');
       setTimeout(() => saveHint.classList.remove('show'), 1500);
     }
 
-    // �ֶ�����
+    // 手动保存
     function saveToLocal() {
       localStorage.setItem(STORAGE_KEY, editor.value);
       localStorage.setItem(FILENAME_KEY, filenameInput.value);
@@ -1812,13 +1809,13 @@
       showToast(t('toastSaved'));
     }
 
-    // �����ļ�
+    // 导出文件
     function exportFile() {
       const blob = new Blob([editor.value], { type: 'text/markdown;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       let name = filenameInput.value.trim();
-      if (!name) name = 'δ�����ĵ�.md';
+      if (!name) name = '未命名文档.md';
       if (!name.toLowerCase().endsWith('.md') && !name.toLowerCase().endsWith('.markdown')) {
         name += '.md';
       }
@@ -1831,10 +1828,66 @@
       showToast(t('toastExported'));
     }
 
-    // ���� Word���� Markdown ��ȾΪ HTML ��αװ�� .doc ����
+    // 导出 Word：将 Markdown 渲染为 HTML 并伪装成 .doc 下载
+
+    // 将 HTML 中的有序列表转换为 Word 原生自动编号格式（mso-list）
+    function transformOrderedListsForWord(html) {
+      var parser = new DOMParser();
+      var doc = parser.parseFromString(html, 'text/html');
+      var ols = doc.querySelectorAll('ol');
+      if (ols.length === 0) return html;
+      for (var oi = 0; oi < ols.length; oi++) {
+        var ol = ols[oi];
+        var level = 1;
+        var parent = ol.parentElement;
+        while (parent) {
+          if (parent.tagName === 'OL') level++;
+          parent = parent.parentElement;
+        }
+        if (level > 9) level = 9;
+        var start = parseInt(ol.getAttribute('start')) || 1;
+        var children = ol.children;
+        for (var i = 0; i < children.length; i++) {
+          var li = children[i];
+          if (li.tagName !== 'LI') continue;
+          li.setAttribute('style', (li.getAttribute('style') || '') + ';mso-list:l0 level' + level);
+          if (start !== 1 && i === 0) {
+            li.setAttribute('style', li.getAttribute('style') + ';mso-level-start-at:' + start);
+          }
+          wrapLiContent(li, level, start, i);
+        }
+      }
+      return doc.body.innerHTML;
+    }
+
+    function wrapLiContent(li, level, start, idx) {
+      var nodesToWrap = [];
+      var children = li.childNodes;
+      for (var j = 0; j < children.length; j++) {
+        var child = children[j];
+        if (child.nodeType === Node.TEXT_NODE) {
+          var text = child.textContent;
+          if (text && text.trim()) {
+            nodesToWrap.push(child);
+          }
+        } else if (child.nodeType === Node.ELEMENT_NODE) {
+          var tag = child.tagName;
+          if (tag === 'OL' || tag === 'UL') continue;
+          nodesToWrap.push(child);
+        }
+      }
+      if (nodesToWrap.length === 0) return;
+      var p = li.ownerDocument.createElement('p');
+      p.setAttribute('style', 'mso-list:l0 level' + level);
+      var firstNode = nodesToWrap[0];
+      for (var k = 0; k < nodesToWrap.length; k++) {
+        p.appendChild(nodesToWrap[k]);
+      }
+      li.insertBefore(p, firstNode);
+    }
     function exportWord() {
       let name = filenameInput.value.trim();
-      if (!name) name = 'δ�����ĵ�.md';
+      if (!name) name = '未命名文档.md';
       name = name.replace(/\.md$/i, '').replace(/\.markdown$/i, '') + '.doc';
 
       const md = editor.value;
@@ -1844,6 +1897,7 @@
       } else {
         bodyHtml = '<pre style="white-space:pre-wrap">' + escapeHtml(md) + '</pre>';
       }
+      bodyHtml = transformOrderedListsForWord(bodyHtml);
 
       const fullHtml = `<!DOCTYPE html>
 <html>
@@ -1851,7 +1905,7 @@
   <meta charset="utf-8">
   <title>${escapeHtml(name.replace(/\.doc$/i, ''))}</title>
   <style>
-    body { font-family: Arial, "����_GB2312", sans-serif; font-size: 12pt; line-height: 1.6; color: #000; text-align: justify; }
+    body { font-family: Arial, "微软雅黑", sans-serif; font-size: 12pt; line-height: 1.6; color: #000; text-align: justify; }
     h1 { font-size: 20pt; font-weight: bold; margin: 18pt 0 10pt; }
     h2 { font-size: 16pt; font-weight: bold; margin: 14pt 0 8pt; }
     h3 { font-size: 14pt; font-weight: bold; margin: 12pt 0 6pt; }
@@ -1888,10 +1942,10 @@ ${bodyHtml}
       showToast(t('toastWordExported'));
     }
 
-    // ���� HTML���� Markdown ��ȾΪ���� HTML ҳ�沢����
+    // 导出 HTML：将 Markdown 渲染为独立 HTML 页面并下载
     function exportHTML() {
       let name = filenameInput.value.trim();
-      if (!name) name = 'δ�����ĵ�.md';
+      if (!name) name = '未命名文档.md';
       name = name.replace(/\.md$/i, '').replace(/\.markdown$/i, '') + '.html';
 
       const md = editor.value;
@@ -1987,7 +2041,7 @@ ${'</scr' + 'ipt>'}
       document.getElementById('export-menu').classList.remove('show');
     }
 
-    // ����ͼƬ
+    // 导出图片
     let currentImageRatio = '9:16';
     let currentImageDataUrl = '';
 
@@ -2143,7 +2197,7 @@ ${'</scr' + 'ipt>'}
         return;
       }
       let name = filenameInput.value.trim();
-      if (!name) name = 'δ�����ĵ�.md';
+      if (!name) name = '未命名文档.md';
       name = name.replace(/\.(md|markdown|txt|html|doc)$/i, '') + '.png';
 
       const a = document.createElement('a');
@@ -2155,7 +2209,7 @@ ${'</scr' + 'ipt>'}
       showToast(t('toastImageDownloaded'));
     }
 
-    // �����ļ����ݵ��༭�����ļ��������ϷŹ��ã�
+    // 加载文件内容到编辑器（文件输入与拖放共用）
     function loadFile(file) {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -2173,14 +2227,14 @@ ${'</scr' + 'ipt>'}
       reader.readAsText(file);
     }
 
-    // �����ļ�
+    // 导入文件
     function importFile(input) {
       const file = input.files[0];
       if (file) loadFile(file);
       input.value = '';
     }
 
-    // �л�����
+    // 切换主题
     function toggleTheme() {
       const current = document.body.getAttribute('data-theme');
       const next = current === 'dark' ? 'light' : 'dark';
@@ -2195,7 +2249,7 @@ ${'</scr' + 'ipt>'}
       updatePreview();
     }
 
-    // ����ĵ�
+    // 清空文档
     function clearDoc() {
       if (confirm(t('confirmClear'))) {
         editor.value = '';
@@ -2205,7 +2259,7 @@ ${'</scr' + 'ipt>'}
       }
     }
 
-    // ��ʷ��¼
+    // 历史记录
     function pushHistory() {
       clearTimeout(historyTimer);
       recordHistory();
@@ -2247,7 +2301,7 @@ ${'</scr' + 'ipt>'}
       showToast(t('toastRedone'));
     }
 
-    // ��������ʽ��
+    // 工具栏格式化
     function formatBold() {
       pushHistory();
       wrapSelection('**', '**');
@@ -2475,9 +2529,9 @@ ${'</scr' + 'ipt>'}
     function insertTable(rows, cols) {
       if (!rows || !cols) return;
       pushHistory();
-      const headerCols = Array.from({ length: cols }, (_, i) => ' ��' + (i + 1) + ' ').join('|');
+      const headerCols = Array.from({ length: cols }, (_, i) => ' 列' + (i + 1) + ' ').join('|');
       const separator = '|' + Array.from({ length: cols }, () => ' --- ').join('|') + '|';
-      const dataCols = '|' + Array.from({ length: cols }, () => ' ���� ').join('|') + '|';
+      const dataCols = '|' + Array.from({ length: cols }, () => ' 内容 ').join('|') + '|';
       let table = '\n|' + headerCols + '|\n' + separator;
       for (let r = 2; r <= rows; r++) {
         table += '\n' + dataCols;
@@ -2494,7 +2548,7 @@ ${'</scr' + 'ipt>'}
       el.focus();
     }
 
-    // ͼƬ�ϴ�ģ̬��
+    // 图片上传模态框
     let pendingImageDataUrl = '';
 
     function openImageModal() {
@@ -2578,10 +2632,10 @@ ${'</scr' + 'ipt>'}
       closeImageModal();
     }
 
-    // Mermaid ͼ��
+    // Mermaid 图表
     const MERMAID_TEMPLATES = {
-      mindmap: `mindmap\n  root((����))\n    ������ A\n      �ӽڵ� A1\n      �ӽڵ� A2\n    ������ B\n      �ӽڵ� B1`,
-      flowchart: `flowchart TD\n    A[��ʼ] --> B{�ж�}\n    B -->|��| C[ִ��]\n    B -->|��| D[����]`
+      mindmap: `mindmap\n  root((主题))\n    子主题 A\n      子节点 A1\n      子节点 A2\n    子主题 B\n      子节点 B1`,
+      flowchart: `flowchart TD\n    A[开始] --> B{判断}\n    B -->|是| C[执行]\n    B -->|否| D[结束]`
     };
 
     function openMermaidModal() {
@@ -2644,7 +2698,7 @@ ${'</scr' + 'ipt>'}
       }
     }
 
-    // ��ͼ������ȫ��
+    // 视图布局与全屏
     function setLayoutMode(mode) {
       if (mode === 'edit') {
         editorCollapsed = false;
@@ -2672,7 +2726,7 @@ ${'</scr' + 'ipt>'}
       const mode = localStorage.getItem(LAYOUT_MODE_KEY) || 'both';
       const labels = { both: t('view'), edit: t('viewEdit'), preview: t('viewPreview') };
       const btn = document.querySelector('#view-dropdown > button');
-      if (btn) btn.innerHTML = (labels[mode] || t('view')) + ' ?';
+      if (btn) btn.innerHTML = (labels[mode] || t('view')) + ' ▾';
     }
 
     function togglePageFullscreen() {
@@ -2704,7 +2758,7 @@ ${'</scr' + 'ipt>'}
       // Optionally update toolbar state here in the future
     }
 
-    // ����ģ̬��
+    // 帮助模态框
     function openHelp() {
       const el = document.getElementById('help-modal');
       el.style.display = 'flex';
@@ -2718,7 +2772,7 @@ ${'</scr' + 'ipt>'}
       localStorage.setItem(HELP_SHOWN_KEY, 'true');
     }
 
-    // ��ҳת Markdown ģ̬��
+    // 网页转 Markdown 模态框
     function openUrlModal() {
       const el = document.getElementById('url-modal');
       el.style.display = 'flex';
@@ -2740,7 +2794,7 @@ ${'</scr' + 'ipt>'}
       fetchedHtml = '';
     }
 
-    // �������滻
+    // 查找与替换
     let findIndex = 0;
 
     function openFindModal() {
@@ -2846,7 +2900,7 @@ ${'</scr' + 'ipt>'}
       document.getElementById('proxy-url').style.display = checked ? 'block' : 'none';
     }
 
-    // ����ͨ�����ش���򹫹� CORS �����ȡ��ҳ
+    // 尝试通过本地代理或公共 CORS 代理获取网页
     async function fetchUrl() {
       const urlInput = document.getElementById('url-input');
       const status = document.getElementById('url-status');
@@ -2865,7 +2919,7 @@ ${'</scr' + 'ipt>'}
       status.style.color = 'var(--text-muted)';
       fetchedHtml = '';
 
-      // ����ʹ�ñ��ش�������ƹ� CORS �ʹ󲿷ַ�����
+      // 优先使用本地代理（可绕过 CORS 和大部分反爬）
       if (useLocalProxy) {
         const proxyUrl = (proxyUrlInput.value.trim() || 'http://localhost:8765/fetch') + '?url=' + encodeURIComponent(url);
         let data = null;
@@ -2891,7 +2945,7 @@ ${'</scr' + 'ipt>'}
         }
       }
 
-      // �������� fallback
+      // 公共代理 fallback
       const proxies = [
         { url: 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url), type: 'text' },
         { url: 'https://api.allorigins.win/get?url=' + encodeURIComponent(url), type: 'json', field: 'contents' },
@@ -2907,7 +2961,7 @@ ${'</scr' + 'ipt>'}
           if (proxy.type === 'json') {
             const data = await response.json();
             text = data[proxy.field];
-            // allorigins ��ʱ���� base64
+            // allorigins 有时返回 base64
             if (typeof text === 'string' && /^[A-Za-z0-9+/=]+$/.test(text) && text.length % 4 === 0) {
               try { text = atob(text); } catch (e) {}
             }
@@ -2930,7 +2984,7 @@ ${'</scr' + 'ipt>'}
       manualArea.style.display = 'block';
     }
 
-    // ��ȡ��ҳԪ��Ϣ
+    // 提取网页元信息
     function extractMeta(doc) {
       const title = (doc.querySelector('title')?.textContent?.trim())
         || (doc.querySelector('h1')?.textContent?.trim())
@@ -2948,7 +3002,7 @@ ${'</scr' + 'ipt>'}
       return { title, author, published };
     }
 
-    // ��ȡ����������
+    // 提取主内容区域
     function extractMainContent(doc) {
       const selectors = ['article', '[role="main"]', '.post-content', '.entry-content', '.article-content', '.content', '#content', 'main'];
       for (const sel of selectors) {
@@ -2958,14 +3012,14 @@ ${'</scr' + 'ipt>'}
       return doc.body;
     }
 
-    // �����޹�Ԫ��
+    // 清理无关元素
     function stripUnwantedElements(root) {
       const selectors = 'script, style, nav, aside, header, footer, form, iframe, img, svg, video, audio, canvas, .ad, .ads, .advertisement, .sidebar, .comments, .comment, #comments, [class*="ad-"], [class*="ads-"], [id*="ad-"], [class*="comment"], [id*="comment"]';
       root.querySelectorAll(selectors).forEach(el => el.remove());
       return root;
     }
 
-    // ����ȡ�� HTML תΪ Markdown
+    // 将提取的 HTML 转为 Markdown
     function htmlToMarkdown(node) {
       if (node.nodeType === Node.TEXT_NODE) {
         return node.textContent.replace(/\s+/g, ' ');
@@ -3034,7 +3088,7 @@ ${'</scr' + 'ipt>'}
       return md + '\n';
     }
 
-    // ת�������뵽�༭��
+    // 转换并插入到编辑器
     function convertAndInsert() {
       const manualHtml = document.getElementById('manual-html').value.trim();
       const html = fetchedHtml || manualHtml;
@@ -3049,7 +3103,7 @@ ${'</scr' + 'ipt>'}
         const cleaned = stripUnwantedElements(main.cloneNode(true));
         let bodyMd = htmlToMarkdown(cleaned).replace(/\n{3,}/g, '\n\n').trim();
 
-        // ���� bodyMd �� h1 ��ͷ������ظ�
+        // 避免 bodyMd 以 h1 开头与标题重复
         if (meta.title && bodyMd.toLowerCase().startsWith('# ' + meta.title.toLowerCase())) {
           bodyMd = bodyMd.replace(/^#\s+.+\n+/, '');
         }
@@ -3057,8 +3111,8 @@ ${'</scr' + 'ipt>'}
         let markdown = '';
         if (meta.title) markdown += '# ' + meta.title + '\n\n';
         const metaParts = [];
-        if (meta.author) metaParts.push('���ߣ�' + meta.author);
-        if (meta.published) metaParts.push('����ʱ�䣺' + meta.published);
+        if (meta.author) metaParts.push('作者：' + meta.author);
+        if (meta.published) metaParts.push('发布时间：' + meta.published);
         if (metaParts.length) markdown += '> ' + metaParts.join(' | ') + '\n\n';
         markdown += bodyMd;
         markdown = markdown.trim();
@@ -3087,51 +3141,15 @@ ${'</scr' + 'ipt>'}
       }
     }
 
-    // Toast ��ʾ
+    // Toast 提示
     function showToast(msg) {
       toast.textContent = msg;
       toast.classList.add('show');
       setTimeout(() => toast.classList.remove('show'), 2000);
     }
 
-    // �¼�����
-    let convertingLineBreaks = false;
-
-    function convertSoftBreaksToHardBreaks() {
-      if (convertingLineBreaks) return false;
-      const oldValue = editor.value;
-      const lines = oldValue.split('\n');
-      const isTableRow = (line) => /^\s*\|.*\|\s*$/.test(line);
-      const result = [];
-      const doubledFlags = new Array(lines.length).fill(false);
-      for (let i = 0; i < lines.length; i++) {
-        result.push(lines[i]);
-        if (i === lines.length - 1) continue;
-        if (lines[i] === '' || lines[i + 1] === '') continue;
-        if (isTableRow(lines[i]) && isTableRow(lines[i + 1])) continue;
-        result.push('');
-        doubledFlags[i] = true;
-      }
-      const newValue = result.join('\n');
-      if (newValue === oldValue) return false;
-      const oldCursor = editor.selectionStart;
-      let offset = 0, pos = 0;
-      for (let i = 0; i < lines.length && pos < oldCursor; i++) {
-        pos += lines[i].length;
-        if (doubledFlags[i] && pos < oldCursor) offset++;
-        if (i < lines.length - 1) pos += 1;
-      }
-      convertingLineBreaks = true;
-      editor.value = newValue;
-      editor.selectionStart = editor.selectionEnd = oldCursor + offset;
-      if (previewMode === 'source') {
-        previewSource.value = newValue;
-      }
-      convertingLineBreaks = false;
-      return true;
-    }
+    // 事件监听
     editor.addEventListener('input', () => {
-      convertSoftBreaksToHardBreaks();
       clearTimeout(historyTimer);
       historyTimer = setTimeout(recordHistory, 400);
       updatePreview();
@@ -3140,7 +3158,6 @@ ${'</scr' + 'ipt>'}
     });
     previewSource.addEventListener('input', () => {
       editor.value = previewSource.value;
-      convertSoftBreaksToHardBreaks();
       clearTimeout(historyTimer);
       historyTimer = setTimeout(recordHistory, 400);
       updateCount();
@@ -3148,7 +3165,7 @@ ${'</scr' + 'ipt>'}
     });
     filenameInput.addEventListener('input', autoSave);
 
-    // �Ϸ��ļ���
+    // 拖放文件打开
     const dropOverlay = document.getElementById('drop-overlay');
     let dragCounter = 0;
 
@@ -3210,7 +3227,7 @@ ${'</scr' + 'ipt>'}
       showToast(t('toastDropUnsupported'));
     });
 
-    // ����ⲿ�ر������˵�
+    // 点击外部关闭下拉菜单
     document.addEventListener('click', (e) => {
       const exportDropdown = document.getElementById('export-dropdown');
       if (exportDropdown && !exportDropdown.contains(e.target)) {
@@ -3234,11 +3251,11 @@ ${'</scr' + 'ipt>'}
       }
     });
 
-    // ȫ��״̬����
+    // 全屏状态监听
     document.addEventListener('fullscreenchange', onFullscreenChange);
     document.addEventListener('webkitfullscreenchange', onFullscreenChange);
 
-    // ��ݼ�
+    // 快捷键
     function handleEditorKeydown(e) {
       if (e.ctrlKey || e.metaKey) {
         if (e.key === 's') {
@@ -3273,7 +3290,7 @@ ${'</scr' + 'ipt>'}
           openFindModal(true);
         }
       }
-      // Tab ����
+      // Tab 缩进
       if (e.key === 'Tab') {
         e.preventDefault();
         const el = getActiveEditor();
@@ -3288,11 +3305,11 @@ ${'</scr' + 'ipt>'}
     editor.addEventListener('keydown', handleEditorKeydown);
     previewSource.addEventListener('keydown', handleEditorKeydown);
 
-    // ���
+    // 启动
     init();
   </script>
 
-  <!-- ����ͼƬ������̨ -->
+  <!-- 导出图片隐藏舞台 -->
   <div id="export-image-stage" class="export-image-stage" aria-hidden="true">
     <div id="export-image-content"></div>
   </div>
