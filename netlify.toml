@@ -1,5 +1,6 @@
 [build]
-  command = "python3 build-static.py"
+  # Netlify can leave its generated config in a reused publish directory.
+  command = "rm -f -- dist/netlify.toml && python3 build-static.py"
   publish = "dist"
 
 [[redirects]]
