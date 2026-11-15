@@ -149,14 +149,15 @@ const editorNumbering = (() => {
     return result;
   }
 
-  async function analyze(candidates, request, signal) {
+  async function analyze(candidates, request, signal, batchLimit) {
+    const batchSize = Number.isInteger(batchLimit) && batchLimit > 0 ? Math.min(batchLimit, maxCandidates) : maxCandidates;
     const result = new Map();
     const headings = [];
     const list = [];
     const firstBatchByLevel = new Map();
-    const total = Math.ceil(candidates.length / maxCandidates);
+    const total = Math.ceil(candidates.length / batchSize);
     for (let index = 0; index < total; index++) {
-      const batch = candidates.slice(index * maxCandidates, (index + 1) * maxCandidates);
+      const batch = candidates.slice(index * batchSize, (index + 1) * batchSize);
       const previous = [...headings, ...list].filter(Boolean);
       const response = await request(batch.map(candidate => candidate.hint), previous, index + 1, total);
       signal.throwIfAborted();

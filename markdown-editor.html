@@ -1559,7 +1559,7 @@
     <section class="modal">
       <header class="modal-header"><h3 id="numbering-settings-title" data-i18n="numberingSettings">模型设置</h3></header>
       <div class="modal-body" oninput="resetNumberingConnection()">
-        <p data-i18n="numberingSetupHint">先启动本机编号服务，再通过该服务打开编辑器。</p>
+        <p id="numbering-setup-hint" data-i18n="numberingSetupHint">先启动本机编号服务，再通过该服务打开编辑器。</p>
         <label for="numbering-provider" data-i18n="numberingProvider">模型供应商</label>
         <select id="numbering-provider" onchange="changeNumberingProvider()">
           <option value="" data-i18n="numberingProviderDefault">使用服务端默认配置</option>
@@ -1704,6 +1704,9 @@
     let numberingConnection;
     const NUMBERING_SETTINGS_KEY = 'md_editor_numbering_settings';
     const NUMBERING_CREDENTIAL_KEY = 'md_editor_numbering_credential';
+    const NUMBERING_ENDPOINT = '/api/numbering';
+    const LOOPBACK_HOSTS = ['127.0.0.1', 'localhost', '[::1]'];
+    const numberingIsLocal = location.protocol === 'file:' || LOOPBACK_HOSTS.includes(location.hostname);
 
     function t(key, ...args) {
       const dict = i18n[currentLang] || i18n['zh-CN'];
@@ -2742,11 +2745,22 @@ ${bodyHtml}
     function openNumberingSettings() {
       const settings = numberingSettings();
       const provider = document.getElementById('numbering-provider');
+      const endpoint = document.getElementById('numbering-endpoint');
+      if (!numberingIsLocal) {
+        const hint = document.getElementById('numbering-setup-hint');
+        hint.dataset.i18n = 'numberingCloudSetupHint';
+        hint.textContent = t(hint.dataset.i18n);
+        const placeholder = provider.options[0];
+        placeholder.dataset.i18n = 'numberingProviderRequired';
+        placeholder.textContent = t(placeholder.dataset.i18n);
+        placeholder.disabled = true;
+      }
       provider.value = settings?.provider || '';
       if (provider.selectedIndex < 0) provider.value = '';
       document.getElementById('numbering-base-url').value = settings?.baseUrl || '';
       document.getElementById('numbering-api-key').value = savedNumberingKey(settings);
-      document.getElementById('numbering-endpoint').value = settings?.endpoint || '/api/numbering';
+      endpoint.value = (numberingIsLocal && settings?.endpoint) || NUMBERING_ENDPOINT;
+      endpoint.disabled = !numberingIsLocal;
       document.getElementById('numbering-model').value = settings?.model || '';
       document.getElementById('numbering-prompt').value = settings?.prompt || editorNumbering.defaultPrompt;
       document.getElementById('numbering-options').open = false;
@@ -2759,7 +2773,7 @@ ${bodyHtml}
       const useDefault = !document.getElementById('numbering-provider').value;
       document.getElementById('numbering-base-url').disabled = useDefault;
       document.getElementById('numbering-api-key').disabled = useDefault;
-      document.getElementById('numbering-model').placeholder = useDefault ? t('numberingDefaultModel') : '';
+      document.getElementById('numbering-model').placeholder = useDefault && numberingIsLocal ? t('numberingDefaultModel') : '';
     }
 
     function changeNumberingProvider() {
@@ -2803,6 +2817,7 @@ ${bodyHtml}
         throw new Error('numberingSettingsInvalid');
       }
       settings.provider = document.getElementById('numbering-provider').value;
+      if (!numberingIsLocal && !settings.provider) throw new Error('numberingProviderRequired');
       if ((settings.provider || settings.model) && !/^[a-z0-9_.:/@-]{1,120}$/i.test(settings.model)) {
         throw new Error('numberingModelInvalid');
       }
@@ -2815,6 +2830,10 @@ ${bodyHtml}
     }
 
     function numberingEndpoint(address) {
+      if (!numberingIsLocal) {
+        if (location.protocol !== 'https:') throw new Error('numberingSettingsInvalid');
+        return new URL(NUMBERING_ENDPOINT, location.origin);
+      }
       const url = new URL(address, location.href);
       if (!['http:', 'https:'].includes(url.protocol) || url.origin !== location.origin ||
           url.username || url.password || url.hash || url.search) throw new Error('numberingSettingsInvalid');
@@ -2822,11 +2841,15 @@ ${bodyHtml}
     }
 
     function modelConnection(settings, apiKey) {
-      if (!settings.provider) return undefined;
+      if (!settings.provider) {
+        if (!numberingIsLocal) throw new Error('numberingProviderRequired');
+        return undefined;
+      }
       let url;
       try { url = new URL(settings.baseUrl); }
       catch (_) { throw new Error('numberingBaseUrlInvalid'); }
-      const local = ['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname);
+      const local = LOOPBACK_HOSTS.includes(url.hostname);
+      if (local && !numberingIsLocal) throw new Error('numberingCloudEndpointUnsupported');
       if ((url.protocol !== 'https:' && !(local && url.protocol === 'http:')) ||
           url.username || url.password || /[?#\s]/.test(settings.baseUrl)) throw new Error('numberingBaseUrlInvalid');
       if ((!local && !apiKey) || !/^[!-~]*$/.test(apiKey)) throw new Error('numberingApiKeyInvalid');
@@ -2865,9 +2888,7 @@ ${bodyHtml}
 
     async function numberingRequest(settings, body, signal) {
       const connection = modelConnection(settings, settings.apiKey);
-      if (connection && !['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname)) {
-        throw new Error('numberingLocalServiceRequired');
-      }
+      const unavailable = numberingIsLocal ? 'numberingConnectionError' : 'numberingCloudUnavailable';
       let response;
       try {
         response = await fetch(numberingEndpoint(settings.endpoint), {
@@ -2877,15 +2898,18 @@ ${bodyHtml}
           signal: AbortSignal.any([signal, AbortSignal.timeout(85000)])
         });
       } catch (error) {
-        throw new Error(error.name === 'TimeoutError' ? 'numberingTimeout' : 'numberingConnectionError');
+        throw new Error(error.name === 'TimeoutError' ? 'numberingTimeout' : unavailable);
       }
       const data = await response.json().catch(() => null);
       if ([404, 405, 501].includes(response.status) || (response.ok && !data)) {
-        throw new Error('numberingLocalServiceRequired');
+        throw new Error(numberingIsLocal ? 'numberingLocalServiceRequired' : unavailable);
       }
       if (!response.ok || !data) {
+        if (!numberingIsLocal && data?.error === 'unsupported_model_endpoint') {
+          throw new Error('numberingCloudEndpointUnsupported');
+        }
         throw new Error(response.status === 504 ? 'numberingTimeout' :
-          response.status === 502 ? 'numberingModelError' : 'numberingConnectionError');
+          response.status === 502 ? 'numberingModelError' : unavailable);
       }
       return data;
     }
@@ -2917,14 +2941,12 @@ ${bodyHtml}
       if (location.protocol === 'file:') { showToast(t('numberingLocalServiceRequired')); return; }
       const settings = numberingSettings();
       if (!settings) { openNumberingSettings(); return; }
-      if (settings.provider) {
-        settings.apiKey = savedNumberingKey(settings);
-        try { modelConnection(settings, settings.apiKey); }
-        catch (error) {
-          openNumberingSettings();
-          document.getElementById('numbering-connection-status').textContent = t(error.message);
-          return;
-        }
+      if (settings.provider) settings.apiKey = savedNumberingKey(settings);
+      try { modelConnection(settings, settings.apiKey); }
+      catch (error) {
+        openNumberingSettings();
+        document.getElementById('numbering-connection-status').textContent = t(error.message);
+        return;
       }
       const candidates = editorNumbering.find(draft.text);
       if (!candidates.length) { showToast(t('numberingNoCandidates')); return; }
@@ -2940,7 +2962,7 @@ ${bodyHtml}
       status.textContent = t('numberingConnecting');
       updateEditAvailability();
       try {
-        const { provider, model } = await numberingRequest(settings, { action: 'status' }, signal);
+        const { provider, model, batchLimit } = await numberingRequest(settings, { action: 'status' }, signal);
         if (numberingJob !== job) return;
         if (typeof provider !== 'string' || typeof model !== 'string') throw new Error('numberingConnectionError');
         if (!window.confirm(t('numberingSendConfirm', candidates.length, provider, model))) {
@@ -2953,14 +2975,15 @@ ${bodyHtml}
             action: 'analyze', prompt: settings.prompt, candidates: batch,
             previous: previous.length ? previous : undefined
           }, signal);
-        }, signal);
+        }, signal, batchLimit);
         if (numberingJob !== job || draft.id !== job.id || draft.text !== job.original) return;
         job.choices = choices;
         refreshNumberingReview();
       } catch (error) {
         if (numberingJob !== job) return;
         cancelNumbering();
-        showToast(t(['numberingLocalServiceRequired', 'numberingConnectionError', 'numberingModelError', 'numberingTimeout'].includes(error.message)
+        showToast(t(['numberingLocalServiceRequired', 'numberingConnectionError', 'numberingCloudUnavailable',
+          'numberingCloudEndpointUnsupported', 'numberingModelError', 'numberingTimeout'].includes(error.message)
           ? error.message : 'numberingInvalidResult'));
       }
     }

@@ -420,6 +420,80 @@ test('model settings fill provider URLs, save and use the selected model', { tim
   assert.equal(await newTab.getByLabel('模型名称').inputValue(), 'fixture-qwen');
 });
 
+test('HTTPS editor uses the same-origin Netlify function and applies a cross-batch preview', { timeout: 30000 }, async t => {
+  const server = await serve();
+  t.after(server.close);
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext();
+  await context.addInitScript(() => localStorage.setItem('md_editor_help_shown', 'true'));
+  const origin = 'https://editor.example';
+  const { default: numbering } = await import('../netlify/functions/numbering.mjs');
+  const actions = [];
+  const upstreamCalls = [];
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    assert.equal(url, 'https://api.deepseek.com/chat/completions');
+    const { messages } = JSON.parse(options.body);
+    const { candidates, previous } = JSON.parse(messages[1].content);
+    upstreamCalls.push({ size: candidates.length, previous });
+    const group = previous?.[0]?.group ?? candidates[0].id;
+    const items = candidates.map(row => ({ id: row.id, kind: 'heading', level: row.headingLevel,
+      group, style: 'outline', start: 0, review: false }));
+    return Response.json({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ items }) } }] });
+  });
+  await context.route(`${origin}/**`, async route => {
+    const request = route.request();
+    const pathname = new URL(request.url()).pathname;
+    if (pathname !== '/api/numbering') {
+      const response = await route.fetch({ url: new URL(pathname, server.url).href });
+      return route.fulfill({ response });
+    }
+    actions.push(request.postDataJSON().action);
+    const response = await numbering(new Request(request.url(), {
+      method: request.method(), headers: await request.allHeaders(), body: request.postData()
+    }));
+    return route.fulfill({ status: response.status, headers: Object.fromEntries(response.headers), body: await response.text() });
+  });
+  const page = await context.newPage();
+  await page.goto(origin);
+  await page.waitForFunction(() => ready);
+
+  await page.getByRole('button', { name: '模型设置', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: '模型设置' });
+  await dialog.getByRole('button', { name: '测试连接' }).click();
+  assert.match(await dialog.getByRole('status').textContent(), /请选择模型供应商/);
+  await dialog.getByLabel('模型供应商').selectOption('deepseek');
+  await dialog.getByLabel('API Key').fill('fixture-key');
+  await dialog.getByLabel('模型名称').fill('fixture-model');
+  await dialog.getByRole('button', { name: '测试连接' }).click();
+  await dialog.getByRole('status').filter({ hasText: '连接成功' }).waitFor();
+  await dialog.getByRole('button', { name: '保存', exact: true }).click();
+  assert.equal(await page.evaluate(() => localStorage.getItem('md_editor_numbering_settings').includes('fixture-key')), false);
+
+  const original = ['# 9. Chapter', ...Array.from({ length: 41 }, (_, index) => `## 9.9 Section ${index + 1}`)].join('\n\n');
+  await edit(page, original);
+  const organize = page.locator('#organize-numbering');
+  page.once('dialog', dialog => dialog.dismiss());
+  await organize.click();
+  await page.locator('#numbering-review').waitFor({ state: 'hidden' });
+  assert.deepEqual(actions, ['test', 'status']);
+  assert.equal(upstreamCalls.length, 1);
+
+  page.once('dialog', dialog => dialog.accept());
+  await organize.click();
+  await page.locator('#numbering-apply').waitFor();
+  assert.deepEqual(actions, ['test', 'status', 'status', 'analyze', 'analyze']);
+  assert.deepEqual(upstreamCalls.map(({ size }) => size), [1, 40, 2]);
+  assert.equal(upstreamCalls[2].previous[0].group, 1);
+  assert.equal(upstreamCalls[2].previous[1].excerpt, 'Section 39');
+  assert.equal(await page.locator('#preview [data-number-label]').last().getAttribute('data-number-label'), '1.41');
+  assert.equal(await page.locator('#editor').inputValue(), original);
+  await page.locator('#numbering-apply').click();
+  assert.notEqual(await page.locator('#editor').inputValue(), original);
+  await page.locator('[onclick="undo()"]').click();
+  assert.equal(await page.locator('#editor').inputValue(), original);
+});
+
 test('numbering results stay in the right preview and exports are manual', { timeout: 90000 }, async t => {
   const server = await serve();
   t.after(server.close);
