@@ -1,0 +1,8 @@
+[build]
+  command = "python3 build-static.py"
+  publish = "dist"
+
+[[redirects]]
+  from = "/"
+  to = "/markdown-editor.html"
+  status = 200

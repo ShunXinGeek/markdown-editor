@@ -7,10 +7,6 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)[![纯前端](https://img.shields.io/badge/Architecture-Pure%20Frontend-success)](./markdown-editor.html)[![多语言](https://img.shields.io/badge/I18N-10%20Languages-orange)](./i18n.js)
 
-<p align="center">
-  <a href="./README.md" style="display:inline-block;padding:6px 18px;background:#f3f4f6;color:#4b5563;border-radius:6px 0 0 6px;text-decoration:none;font-weight:600;">English</a>  |  <a href="./README.zh.md" style="display:inline-block;padding:6px 18px;background:#4f46e5;color:#fff;border-radius:0 6px 6px 0;text-decoration:none;font-weight:600;">简体中文</a>
-</p>
-
 </div>
 
 ---
@@ -23,7 +19,7 @@ AI 时代，Markdown 这件事，本该足够简单。
 
 于是有了这个编辑器。
 
-它只有**一个 HTML 文件**。双击打开就能写，所有数据都存在本地，断网也能继续。它几乎支持 Codex、Claude Code、Openclaw 等市面上所有的 Agent，无论是 AGENTS.md 还是 Skill.md，你都可以通过它完成设计。
+下载项目并保留 HTML 及配套资源，双击 HTML 即可开始写作。草稿保存在当前浏览器，断网仍可编辑、预览基础 Markdown 和导出原文。它几乎支持 Codex、Claude Code、Openclaw 等市面上所有的 Agent，无论是 AGENTS.md 还是 Skill.md，你都可以通过它完成设计。
 
 > 如果你也相信：AI 时代，markdown 就是第一语言。欢迎你来用、来改、来 Star。
 
@@ -33,14 +29,14 @@ AI 时代，Markdown 这件事，本该足够简单。
 
 ### 🚀 即开即用，极简使用
 
-- 单文件 `markdown-editor.html`，双击即可在浏览器中运行。
-- 所有核心样式、结构、逻辑内联在 HTML 中，离线也能使用。
+- 双击 `markdown-editor.html` 即可运行，需保留相邻 JavaScript 文件和 `vendor/` 目录。
+- 基础编辑和预览随页面发布。公式、Mermaid、Word 和 PNG 使用按需加载的资源。未缓存时需要联网。
 
 ### 🖊️ 完整的 Markdown 体验
 - **拖拽导入**：直接把文件拖进来。
 - **实时预览**：左侧写作，右侧同步预览。
 - **双栏/单栏/纯预览布局**：支持「编辑 + 预览」「仅编辑」「仅预览」三种模式，自由切换。
-- **源码模式**：右侧可直接编辑 Markdown 源码，所见即所得。
+- **源码模式**：右侧也可直接编辑 Markdown 源码，与左侧共享正文。
 - **拖拽分栏**：拖动中间分隔线调整编辑区与预览区比例，位置自动记忆。
 
 ### 🛠️ 丰富的编辑工具
@@ -68,9 +64,10 @@ AI 时代，Markdown 这件事，本该足够简单。
 
 ### 💾 本地自动保存
 
-- 编辑器每 500ms 自动保存内容到浏览器 `localStorage`。
-- 意外关闭、刷新页面，内容都会自动恢复。
-- 文件名、分栏比例、折叠状态、主题、语言等偏好也会一并记忆。
+- 编辑暂停后自动保存。点击「保存」或按 Ctrl+S 可立即提交。
+- HTTP(S) 页面优先将正文、文件名和修订号保存到 IndexedDB。旧草稿首次打开时迁移，原记录作为回退保留。直接打开文件或 IndexedDB 不可用时，使用浏览器提供的本地存储。
+- 遇到配额、权限或标签页冲突时，状态栏会提示。可以通过「导出 Markdown」下载当前稿，再处理冲突或刷新。
+- 浏览器配置、站点地址或打开方式不同，草稿存储空间也可能不同。换地址或设备前请导出重要文档。
 
 ### 📤 多格式导出
 
@@ -78,7 +75,7 @@ AI 时代，Markdown 这件事，本该足够简单。
 |------|------|
 | `.md` | 原始 Markdown 文件 |
 | `.html` | 独立 HTML 文件，可直接在浏览器打开 |
-| `.doc` | Word 文档（可直接在 office 里打开） |
+| `.docx` | Word 文档（可直接在 office 里打开） |
 | `.pdf` | 调用浏览器，打印为 PDF |
 | `.png` | 长图导出，支持 9:16、4:5、3:4、1:1、16:9 多种比例，适合小红书、公众号、Instagram 分享 |
 
@@ -95,7 +92,7 @@ AI 时代，Markdown 这件事，本该足够简单。
 | `Ctrl + K` | 插入链接 |
 | `Ctrl + Shift + K` | 插入图片 |
 | `Ctrl + F` | 查找替换 |
-| `Tab` | 插入 4 空格缩进 |
+| `Tab` | 插入 4 空格缩进。按 Esc 后再按 Tab 可离开编辑区 |
 
 ---
 
@@ -129,7 +126,7 @@ AI 时代，Markdown 这件事，本该足够简单。
                               │
                               ▼
                    web-to-md-proxy.py (可选)
-                    网页抓取 + 反爬绕过
+                    经配对的公开网页抓取
 ```
 ---
 
@@ -137,8 +134,12 @@ AI 时代，Markdown 这件事，本该足够简单。
 
 ```
 .
-├── markdown-editor.html    # 主编辑器（单文件应用）
+├── markdown-editor.html    # 主编辑器
 ├── i18n.js                 # 多语言字典（10 种语言）
+├── draft-storage.js       # 草稿迁移与存储
+├── render-content.js      # Markdown 净化、公式和图表预处理
+├── vendor/                # 随站点发布的核心依赖、许可证和校验值
+├── build-static.py        # 组装静态站点发布目录
 ├── web-to-md-proxy.py      # 本地代理脚本（可选）
 ├── LICENSE                 # MIT 开源协议
 └── README.md               # 本文件
@@ -176,15 +177,43 @@ open http://localhost:8080/markdown-editor.html
 ### 方式三：使用本地代理（网页转 Markdown）
 
 ```bash
-# 安装 requests（可选，推荐）
-pip install requests
-
-# 启动代理
+# 仅需 Python 3，默认监听 127.0.0.1:8765
 python web-to-md-proxy.py
 
-# 默认端口 8765
-# 在编辑器中勾选「使用本地代理」即可
+# 托管版或不同本地端口，额外允许编辑器的准确来源
+python web-to-md-proxy.py --origin https://你的编辑器域名
 ```
+
+---
+
+勾选「使用本地代理」，粘贴终端显示的本次配对令牌。默认允许双击打开的编辑器及本机 8080 端口的静态页面。令牌重启后更新，网页抓取限于公开 HTTP(S) 地址。也可以在同一弹窗直接粘贴网页 HTML。使用公共代理时，编辑器会先显示要发送的完整网址和服务商并请求确认。
+
+### 生成静态发布产物
+
+运行 `python build-static.py`。脚本核对所附依赖的完整性，并将运行文件、许可证及安全响应头写入 `dist/`。Netlify 从该目录发布，首页重写至编辑器。可运行 `python -m http.server 8080 --directory dist` 后访问 `http://127.0.0.1:8080/markdown-editor.html` 检查产物。
+
+---
+
+## 本地文档、离线包与导出
+
+- 「恢复点」保留最近 10 个版本，另有 16 MiB 的单文档历史预算。可预览、下载或恢复为新修订。出现标签页冲突时可下载两份内容。
+- 「文档」可新建、切换、按标题、标签或正文搜索，以及导出和恢复整个本地工作区。还原遇到同一 ID 时保留副本。
+- 默认的 Markdown 下载会嵌入本地图片。「正文和附件 ZIP」将图片单独打包。导入此 ZIP 时校验附件内容。旧版内嵌图片仍可打开，也可从「恢复点」提取为附件。
+- 从导出菜单下载离线包并解压。直接打开 HTML 可离线编辑、渲染公式和 Mermaid。需持久保存多个文档和附件时，请在解包目录运行 `python -m http.server 8080`，并通过 `http://localhost:8080/markdown-editor.html` 打开。Word 与 PNG 的可选导出库仍按需加载。
+- 长文会合并相邻的预览任务，也可手动暂停预览。标题大纲、写作模板和批量替换预览都针对活动文档。
+- 「导出版式」控制 Word 和 PDF 的纸张与页边距。PDF 的最终设置可由浏览器打印界面调整。PNG 支持按预设页高分片，多个分片以按顺序编号的 ZIP 下载。
+
+## 回归测试
+
+安装 Node.js 24 和 Python 3.13，然后运行：
+
+```sh
+npm ci
+npx playwright install chromium firefox
+npm run test:release
+```
+
+Linux CI 额外安装浏览器系统依赖。测试使用临时浏览器上下文和本地代理样例，构建到 `dist/` 并检查 CSP、依赖校验值、五种导出及草稿、离线、附件、工作区和键盘行为。
 
 ---
 

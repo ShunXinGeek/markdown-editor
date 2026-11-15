@@ -42,3 +42,15 @@
 
 ## 视觉/浏览器发现
 - 无需浏览器测试，改动仅涉及 DOCX 导出逻辑
+
+---
+
+# 2026-11-15 文档与仓库同步发现
+
+- ARCHITECTURE.md 描述仍停留在早期单文档/localStorage 流程；当前代码新增 IndexedDB 草稿、工作区、附件、模块化渲染与静态构建，应按实际代码修订。
+- README、现有测试与按钮审查/复测报告记录了 11 月 14 至 15 日的工作区变更与验证结果；Git 历史没有该五日窗口提交，不能把文件修改时间冒称为提交时间。
+- `dist/`、`node_modules/`、`test-results/` 已忽略；仍须检查 `debug.log` 与 `.netlify/` 等本机文件，避免误上传。
+- GitHub 远端 `origin/master` 与本地 HEAD 都是 `5cab07a`，没有远端先行改动。工作区源码、配置、测试、vendor 文件均为拟上传的程序更新。
+- 现行脚本加载顺序：随仓库发布的 Marked、DOMPurify、i18n、草稿/附件/工作区/列表/渲染模块，再执行 HTML 内联控制器；KaTeX、Mermaid、docx、PNG 库按需并校验完整性。
+- HTTP(S) 使用 IndexedDB 及修订号比对保存；`file:` 或 IndexedDB 不可用时只支持 localStorage 单文档回退。附件采用内容 SHA-256 命名、存入数据库，工作区备份校验清单及附件。预览使用 DOMPurify 净化和异步渲染代次控制。
+- `build-static.py` 校验 vendor SHA-384，输出 `dist/`、`_headers`（CSP）及离线 ZIP；Netlify 使用根目录 `netlify.toml`。测试覆盖 Chromium、Firefox、Python 代理。生成目录与本机日志不属于发布源码。

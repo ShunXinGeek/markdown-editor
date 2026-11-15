@@ -1,0 +1,11 @@
+{
+  "name": "markdown-editor",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/*.test.cjs",
+    "test:release": "npm test"
+  },
+  "devDependencies": {
+    "playwright": "1.65.1"
+  }
+}

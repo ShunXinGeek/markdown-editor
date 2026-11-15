@@ -171,6 +171,10 @@
       background: var(--accent-hover);
       box-shadow: 0 4px 10px rgba(79, 70, 229, 0.25);
     }
+    :is(.top-bar, .editor-toolbar, .writing-tools, .pane-header) button:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
     .top-bar input[type="file"], .editor-toolbar input[type="file"] { display: none; }
     .dropdown {
       position: relative;
@@ -210,9 +214,50 @@
       transition: background .15s ease, color .15s ease;
       white-space: nowrap;
     }
+    .dropdown-menu a.dropdown-item { display: block; text-decoration: none; }
+    .dropdown-menu a.dropdown-item[hidden] { display: none; }
+    .dropdown-menu button.dropdown-item {
+      display: block;
+      width: 100%;
+      border: 0;
+      background: transparent;
+      text-align: start;
+    }
+    .dropdown-menu button.dropdown-item:hover,
+    .dropdown-menu button.dropdown-item:focus-visible,
     .dropdown-item:hover {
       background: var(--accent-soft);
       color: var(--accent);
+    }
+    .editor-format-menu {
+      max-height: min(392px, var(--menu-space, 65vh));
+      max-width: calc(100vw - 16px);
+      overflow-y: auto;
+    }
+    .list-style-menu.show {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(64px, 1fr));
+      gap: 4px;
+    }
+    .list-style-menu button.dropdown-item {
+      min-height: 46px;
+      padding: 8px;
+      white-space: pre;
+      text-align: center;
+      line-height: 1.2;
+    }
+    .font-menu { width: 224px; }
+    .font-menu button[aria-pressed='true'] { background: var(--accent-soft); color: var(--accent); }
+    .font-menu form { display: flex; gap: 4px; padding: 6px 2px 2px; border-top: 1px solid var(--border); }
+    .font-menu input {
+      width: 0;
+      flex: 1;
+      font: inherit;
+      color: var(--text);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 4px 6px;
     }
     .top-bar .divider, .editor-toolbar .divider {
       width: 1px;
@@ -292,6 +337,10 @@
       color: var(--text-muted);
     }
     /* 主编辑区 */
+    .writing-tools { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 12px; }
+    .writing-tools button, #preview-pause {
+      background: var(--panel-bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px;
+    }
     .main {
       display: flex;
       flex: 1;
@@ -703,6 +752,14 @@
       border-color: var(--accent);
     }
     .modal-footer button.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: #fff; }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+    }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     /* 移动端 */
     @media (max-width: 768px) {
       .top-bar { padding: 8px; gap: 6px; }
@@ -966,7 +1023,14 @@
       to { opacity: 1; transform: translateY(0); }
     }
     /* 打印 / 导出 PDF */
+    #pdf-document { display: none; }
     @media print {
+      body.printing-snapshot > * { display: none !important; }
+      body.printing-snapshot > #pdf-document { display: block !important; }
+      #pdf-document img { max-width: 100%; }
+      #pdf-document pre { white-space: pre-wrap; }
+      #pdf-document table { width: 100%; border-collapse: collapse; }
+      #pdf-document tr, #pdf-document img { break-inside: avoid; }
       .top-bar, .editor-toolbar, .statusbar, .editor-pane, .resizer, .preview-pane .pane-header,
       .preview-source, .modal-overlay, .toast, .icon-sprite {
         display: none !important;
@@ -1001,7 +1065,6 @@
       }
     }
   </style>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
 </head>
 <body data-theme="light">
   <!-- SVG 图标精灵 -->
@@ -1050,38 +1113,43 @@
   <div class="app">
     <div class="top-bar">
       <span class="brand" data-i18n="brand">Markdown编辑器</span>
-      <input type="text" id="filename" value="未命名文档.md" data-i18n-title="filenameTitle" title="文件名">
+      <input type="text" id="filename" value="未命名文档" data-i18n-title="filenameTitle" title="文件名">
       <div class="spacer"></div>
       <div class="top-actions">
+        <button type="button" onclick="openWorkspace()" data-i18n="workspaceTitle">文档</button>
+        <button type="button" onclick="openRecovery()" data-i18n="recoveryTitle">恢复点</button>
         <button onclick="saveToLocal()" class="primary" data-i18n-title="save"><svg class="icon"><use href="#icon-save"></use></svg> <span data-i18n="save">保存</span></button>
-        <label for="importFile"><svg class="icon"><use href="#icon-upload"></use></svg> <span data-i18n="importBtn">导入</span></label>
-        <input type="file" id="importFile" accept=".md,.markdown,.txt" onchange="importFile(this)">
+        <button type="button" id="import-button" onclick="document.getElementById('importFile').click()" data-i18n-title="importBtn" data-edit-action><svg class="icon"><use href="#icon-upload"></use></svg> <span data-i18n="importBtn">导入</span></button>
+        <input type="file" id="importFile" accept=".md,.markdown,.txt,.zip" onchange="handleFileInput(this)" data-edit-action>
         <div class="dropdown" id="export-dropdown">
           <button onclick="toggleExportMenu()" data-i18n-title="exportBtn"><svg class="icon"><use href="#icon-download"></use></svg> <span data-i18n="exportBtn">导出</span></button>
           <div class="dropdown-menu" id="export-menu">
-            <div class="dropdown-item" onclick="exportFile(); closeExportMenu();" data-i18n="exportMd">导出 Markdown (.md)</div>
-            <div class="dropdown-item" onclick="exportWord(); closeExportMenu();" data-i18n="exportWord">导出 Word (.doc)</div>
-            <div class="dropdown-item" onclick="exportPDF(); closeExportMenu();" data-i18n="exportPdf">导出 PDF (.pdf)</div>
-            <div class="dropdown-item" onclick="exportHTML(); closeExportMenu();" data-i18n="exportHtml">导出 HTML (.html)</div>
-            <div class="dropdown-item" onclick="openExportImageModal(); closeExportMenu();" data-i18n="exportImage">导出图片 (.png)</div>
+            <button type="button" class="dropdown-item" onclick="exportFile(); closeExportMenu();" data-i18n="exportMd">导出 Markdown (.md)</button>
+            <button type="button" class="dropdown-item" onclick="downloadAttachmentBundle(); closeExportMenu();" data-i18n="attachmentZip">正文和附件 ZIP</button>
+            <a class="dropdown-item" id="offline-download" href="markdown-editor-offline.zip" download data-i18n="offlineZip">下载离线包</a>
+            <button type="button" class="dropdown-item" onclick="exportWord(); closeExportMenu();" data-i18n="exportWord">导出 Word (.docx)</button>
+            <button type="button" class="dropdown-item" onclick="openExportSettings(); closeExportMenu();" data-i18n="exportLayout">导出版式</button>
+            <button type="button" class="dropdown-item" onclick="exportPDF(); closeExportMenu();" data-i18n="exportPdf">导出 PDF (.pdf)</button>
+            <button type="button" class="dropdown-item" onclick="exportHTML(); closeExportMenu();" data-i18n="exportHtml">导出 HTML (.html)</button>
+            <button type="button" class="dropdown-item" onclick="openExportImageModal(); closeExportMenu();" data-i18n="exportImage">导出图片 (.png)</button>
           </div>
         </div>
-        <button onclick="openUrlModal()" data-i18n-title="urlTitle"><svg class="icon"><use href="#icon-globe"></use></svg> <span data-i18n="webToMd">网页转MD</span></button>
+        <button onclick="openUrlModal()" data-i18n-title="urlTitle" data-edit-action><svg class="icon"><use href="#icon-globe"></use></svg> <span data-i18n="webToMd">网页转MD</span></button>
         <button onclick="openHelp()" data-i18n-title="helpTitle"><svg class="icon"><use href="#icon-help"></use></svg> <span data-i18n="help">帮助</span></button>
-        <button onclick="clearDoc()" data-i18n-title="clear"><svg class="icon"><use href="#icon-trash"></use></svg> <span data-i18n="clear">清空</span></button>
+        <button onclick="clearDoc()" data-i18n-title="clear" data-edit-action><svg class="icon"><use href="#icon-trash"></use></svg> <span data-i18n="clear">清空</span></button>
         <div class="dropdown" id="lang-dropdown">
           <button onclick="toggleLangMenu()" data-i18n-title="langLabel"><svg class="icon"><use href="#icon-globe"></use></svg> <span data-i18n="langLabel">语言</span></button>
           <div class="dropdown-menu" id="lang-menu">
-            <div class="dropdown-item" onclick="setLanguage('zh-CN'); closeLangMenu();">简体中文</div>
-            <div class="dropdown-item" onclick="setLanguage('zh-TW'); closeLangMenu();">繁體中文</div>
-            <div class="dropdown-item" onclick="setLanguage('en'); closeLangMenu();">English</div>
-            <div class="dropdown-item" onclick="setLanguage('ja'); closeLangMenu();">日本語</div>
-            <div class="dropdown-item" onclick="setLanguage('ko'); closeLangMenu();">한국어</div>
-            <div class="dropdown-item" onclick="setLanguage('es'); closeLangMenu();">Español</div>
-            <div class="dropdown-item" onclick="setLanguage('fr'); closeLangMenu();">Français</div>
-            <div class="dropdown-item" onclick="setLanguage('de'); closeLangMenu();">Deutsch</div>
-            <div class="dropdown-item" onclick="setLanguage('ru'); closeLangMenu();">Русский</div>
-            <div class="dropdown-item" onclick="setLanguage('pt'); closeLangMenu();">Português</div>
+            <button type="button" class="dropdown-item" onclick="setLanguage('zh-CN'); closeLangMenu();">简体中文</button>
+            <button type="button" class="dropdown-item" onclick="setLanguage('zh-TW'); closeLangMenu();">繁體中文</button>
+            <button type="button" class="dropdown-item" onclick="setLanguage('en'); closeLangMenu();">English</button>
+            <button type="button" class="dropdown-item" onclick="setLanguage('ja'); closeLangMenu();">日本語</button>
+            <button type="button" class="dropdown-item" onclick="setLanguage('ko'); closeLangMenu();">한국어</button>
+            <button type="button" class="dropdown-item" onclick="setLanguage('es'); closeLangMenu();">Español</button>
+            <button type="button" class="dropdown-item" onclick="setLanguage('fr'); closeLangMenu();">Français</button>
+            <button type="button" class="dropdown-item" onclick="setLanguage('de'); closeLangMenu();">Deutsch</button>
+            <button type="button" class="dropdown-item" onclick="setLanguage('ru'); closeLangMenu();">Русский</button>
+            <button type="button" class="dropdown-item" onclick="setLanguage('pt'); closeLangMenu();">Português</button>
           </div>
         </div>
       </div>
@@ -1091,6 +1159,16 @@
       <div class="format-group">
         <button onclick="undo()" data-i18n-title="undoTitle" title="撤销 Ctrl+Z"><svg class="icon"><use href="#icon-undo"></use></svg></button>
         <button onclick="redo()" data-i18n-title="redoTitle" title="重做 Ctrl+Y / Ctrl+Shift+Z"><svg class="icon"><use href="#icon-redo"></use></svg></button>
+        <div class="dropdown editor-format-dropdown">
+          <button type="button" data-i18n-title="fontFamily" title="字体"><b aria-hidden="true">A</b> <span id="font-label" data-i18n="fontFamily">字体</span> <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-chevron-down"></use></svg></button>
+          <div class="dropdown-menu editor-format-menu font-menu" id="font-menu">
+            <button type="button" class="dropdown-item" data-font="" data-i18n="fontDefault">默认字体</button>
+            <form id="custom-font-form">
+              <input id="custom-font" type="text" maxlength="80" required data-i18n-placeholder="fontFamily" aria-labelledby="font-label">
+              <button type="submit" data-i18n="fontApply">应用字体</button>
+            </form>
+          </div>
+        </div>
         <span class="divider"></span>
         <button onclick="formatBold()" data-i18n-title="boldTitle" title="加粗 Ctrl+B"><b>B</b></button>
         <button onclick="formatItalic()" data-i18n-title="italicTitle" title="斜体 Ctrl+I"><i>I</i></button>
@@ -1102,18 +1180,24 @@
         <div class="dropdown" id="heading-dropdown">
           <button onclick="toggleHeadingMenu()" data-i18n-title="heading" title="标题">H <svg class="icon icon-sm"><use href="#icon-chevron-down"></use></svg></button>
           <div class="dropdown-menu" id="heading-menu">
-            <div class="dropdown-item" onclick="insertHeading(1); closeHeadingMenu();" data-i18n="headingH1">H1 一级标题</div>
-            <div class="dropdown-item" onclick="insertHeading(2); closeHeadingMenu();" data-i18n="headingH2">H2 二级标题</div>
-            <div class="dropdown-item" onclick="insertHeading(3); closeHeadingMenu();" data-i18n="headingH3">H3 三级标题</div>
-            <div class="dropdown-item" onclick="insertHeading(4); closeHeadingMenu();" data-i18n="headingH4">H4 四级标题</div>
-            <div class="dropdown-item" onclick="insertHeading(5); closeHeadingMenu();" data-i18n="headingH5">H5 五级标题</div>
-            <div class="dropdown-item" onclick="insertHeading(6); closeHeadingMenu();" data-i18n="headingH6">H6 六级标题</div>
+            <button type="button" class="dropdown-item" onclick="insertHeading(1); closeHeadingMenu();" data-i18n="headingH1">H1 一级标题</button>
+            <button type="button" class="dropdown-item" onclick="insertHeading(2); closeHeadingMenu();" data-i18n="headingH2">H2 二级标题</button>
+            <button type="button" class="dropdown-item" onclick="insertHeading(3); closeHeadingMenu();" data-i18n="headingH3">H3 三级标题</button>
+            <button type="button" class="dropdown-item" onclick="insertHeading(4); closeHeadingMenu();" data-i18n="headingH4">H4 四级标题</button>
+            <button type="button" class="dropdown-item" onclick="insertHeading(5); closeHeadingMenu();" data-i18n="headingH5">H5 五级标题</button>
+            <button type="button" class="dropdown-item" onclick="insertHeading(6); closeHeadingMenu();" data-i18n="headingH6">H6 六级标题</button>
           </div>
         </div>
         <span class="divider"></span>
         <button onclick="formatQuote()" data-i18n-title="quote" title="引用"><svg class="icon"><use href="#icon-quote"></use></svg> <span data-i18n="quote">引用</span></button>
-        <button onclick="formatUnorderedList()" data-i18n-title="unordered" title="无序列表"><svg class="icon"><use href="#icon-list"></use></svg> <span data-i18n="unordered">无序</span></button>
-        <button onclick="formatOrderedList()" data-i18n-title="ordered" title="有序列表"><svg class="icon"><use href="#icon-list-numbered"></use></svg> <span data-i18n="ordered">有序</span></button>
+        <div class="dropdown editor-format-dropdown">
+          <button type="button" data-i18n-title="unordered" title="无序列表"><svg class="icon" aria-hidden="true"><use href="#icon-list"></use></svg> <span data-i18n="unordered">无序</span> <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-chevron-down"></use></svg></button>
+          <div class="dropdown-menu editor-format-menu list-style-menu" id="unordered-menu"></div>
+        </div>
+        <div class="dropdown editor-format-dropdown">
+          <button type="button" data-i18n-title="ordered" title="有序列表"><svg class="icon" aria-hidden="true"><use href="#icon-list-numbered"></use></svg> <span data-i18n="ordered">有序</span> <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-chevron-down"></use></svg></button>
+          <div class="dropdown-menu editor-format-menu list-style-menu" id="ordered-menu"></div>
+        </div>
         <button onclick="formatTaskList()" data-i18n-title="task" title="任务列表"><svg class="icon"><use href="#icon-task"></use></svg> <span data-i18n="task">任务</span></button>
         <span class="divider"></span>
         <button onclick="insertCodeRow()" data-i18n-title="inlineCode" title="行内代码"><svg class="icon"><use href="#icon-code"></use></svg> <span data-i18n="inlineCode">行内代码</span></button>
@@ -1127,32 +1211,36 @@
             <div class="table-size-label" id="table-size-label">0 行 × 0 列</div>
           </div>
         </div>
-        <button onclick="openFindModal()" data-i18n-title="find" title="查找替换 Ctrl+F"><svg class="icon"><use href="#icon-search"></use></svg> <span data-i18n="find">查找</span></button>
+        <button id="find-button" onclick="openFindModal()" data-i18n-title="find" title="查找替换 Ctrl+F"><svg class="icon"><use href="#icon-search"></use></svg> <span data-i18n="find">查找</span></button>
         <button onclick="openMermaidModal()" data-i18n-title="mermaid" title="插入 Mermaid 图表"><svg class="icon"><use href="#icon-mermaid"></use></svg> <span data-i18n="mermaid">Mermaid</span></button>
       </div>
       <div class="editor-actions">
         <div class="dropdown" id="view-dropdown">
           <button onclick="toggleViewMenu()" data-i18n-title="view" title="视图布局"><svg class="icon"><use href="#icon-layout"></use></svg> <span data-i18n="view">视图</span> <svg class="icon icon-sm"><use href="#icon-chevron-down"></use></svg></button>
           <div class="dropdown-menu" id="view-menu">
-            <div class="dropdown-item" onclick="setLayoutMode('both'); closeViewMenu();" data-i18n="viewBoth">编辑 + 预览</div>
-            <div class="dropdown-item" onclick="setLayoutMode('edit'); closeViewMenu();" data-i18n="viewEdit">仅编辑</div>
-            <div class="dropdown-item" onclick="setLayoutMode('preview'); closeViewMenu();" data-i18n="viewPreview">仅预览</div>
-            <div class="dropdown-item" onclick="togglePageFullscreen(); closeViewMenu();" data-i18n="pageFullscreen">页面全屏</div>
-            <div class="dropdown-item" onclick="toggleFullscreen(); closeViewMenu();" data-i18n="systemFullscreen">系统全屏</div>
+            <button type="button" class="dropdown-item" onclick="setLayoutMode('both'); closeViewMenu();" data-i18n="viewBoth">编辑 + 预览</button>
+            <button type="button" class="dropdown-item" onclick="setLayoutMode('edit'); closeViewMenu();" data-i18n="viewEdit">仅编辑</button>
+            <button type="button" class="dropdown-item" onclick="setLayoutMode('preview'); closeViewMenu();" data-i18n="viewPreview">仅预览</button>
+            <button type="button" class="dropdown-item" onclick="togglePageFullscreen(); closeViewMenu();" data-i18n="pageFullscreen">页面全屏</button>
+            <button type="button" class="dropdown-item" onclick="toggleFullscreen(); closeViewMenu();" data-i18n="systemFullscreen">系统全屏</button>
           </div>
         </div>
         <button onclick="toggleTheme()" data-i18n-title="theme" title="切换主题"><svg class="icon"><use href="#icon-sun"></use></svg> <span data-i18n="theme">主题</span></button>
       </div>
     </div>
 
+    <div class="writing-tools">
+      <button type="button" onclick="openOutline()" data-i18n="writingOutline">标题大纲</button>
+      <button type="button" onclick="openTemplates()" data-i18n="writingTemplates" data-edit-action>写作模板</button>
+    </div>
     <div class="main">
       <div class="pane editor-pane">
         <div class="pane-header">
-          <span class="pane-title" data-i18n="editorPaneTitle">编辑</span>
+          <span class="pane-title" id="editor-label" data-i18n="editorPaneTitle">编辑</span>
           <span data-i18n="editorPaneHint">支持 Markdown 语法</span>
           <button class="collapse-btn" id="editor-collapse-btn" onclick="togglePane('editor')" title="收起编辑区"><svg class="icon icon-sm"><use href="#icon-chevron-left"></use></svg></button>
         </div>
-        <textarea id="editor" data-i18n-placeholder="editorPlaceholder" placeholder="开始输入 Markdown..." spellcheck="false"></textarea>
+        <textarea id="editor" aria-labelledby="editor-label" aria-describedby="indent-help" data-i18n-placeholder="editorPlaceholder" placeholder="开始输入 Markdown..." spellcheck="false"></textarea>
       </div>
       <div class="resizer" id="resizer"></div>
       <div class="pane preview-pane">
@@ -1161,17 +1249,19 @@
           <span class="pane-title" data-i18n="previewPaneTitle">实时预览</span>
           <div class="preview-toggle">
             <button class="toggle-btn active" data-mode="preview" onclick="setPreviewMode('preview')" data-i18n="previewTab">预览</button>
-            <button class="toggle-btn" data-mode="source" onclick="setPreviewMode('source')" data-i18n="sourceTab">源码</button>
+            <button class="toggle-btn" id="source-label" data-mode="source" onclick="setPreviewMode('source')" data-i18n="sourceTab" data-edit-action>源码</button>
           </div>
+          <button id="preview-pause" type="button" aria-pressed="false" data-i18n="previewPause">暂停预览</button>
           <span id="word-count">0 字</span>
         </div>
         <div class="preview-content" id="preview"></div>
-        <textarea id="preview-source" class="preview-source" data-i18n-placeholder="previewSourcePlaceholder" placeholder="在此编辑 Markdown 源码..." spellcheck="false"></textarea>
+        <textarea id="preview-source" aria-labelledby="source-label" aria-describedby="indent-help" class="preview-source" data-i18n-placeholder="previewSourcePlaceholder" placeholder="在此编辑 Markdown 源码..." spellcheck="false"></textarea>
       </div>
     </div>
 
+    <span class="sr-only" id="indent-help" data-i18n="indentEscape"></span>
     <div class="statusbar">
-      <span id="status-left">自动保存已启用</span>
+      <span id="status-left" role="status">自动保存已启用</span>
       <span class="save-hint" id="save-hint">✓ 已保存</span>
       <span id="status-right">Ctrl+S 保存 · Ctrl+B 加粗 · Ctrl+I 斜体 · Ctrl+U 下划线 · Ctrl+Z 撤销 · Ctrl+Y 重做</span>
     </div>
@@ -1182,14 +1272,14 @@
     </div>
   </div>
 
-  <div class="toast" id="toast"></div>
+  <div class="toast" id="toast" role="status"></div>
 
   <!-- 使用帮助模态框 -->
-  <div class="modal-overlay" id="help-modal">
+  <div class="modal-overlay" id="help-modal" role="dialog" aria-modal="true" aria-labelledby="help-modal-title">
     <div class="modal">
       <div class="modal-header">
-        <h3><svg class="icon icon-lg"><use href="#icon-book"></use></svg> <span data-i18n="helpTitle">使用帮助</span></h3>
-        <button onclick="closeHelp()"><svg class="icon"><use href="#icon-close"></use></svg></button>
+        <h3 id="help-modal-title"><svg class="icon icon-lg"><use href="#icon-book"></use></svg> <span data-i18n="helpTitle">使用帮助</span></h3>
+        <button onclick="closeHelp()" data-i18n-title="cancel"><svg class="icon"><use href="#icon-close"></use></svg></button>
       </div>
       <div class="modal-body" id="help-body">
         <p>这是一个即开即用的浏览器 Markdown 编辑器：左侧写作，右侧实时预览。内容会自动保存在浏览器本地，下次打开自动恢复。</p>
@@ -1238,11 +1328,11 @@
   </div>
 
   <!-- 网页转 Markdown 模态框 -->
-  <div class="modal-overlay" id="url-modal">
+  <div class="modal-overlay" id="url-modal" role="dialog" aria-modal="true" aria-labelledby="url-modal-title">
     <div class="modal">
       <div class="modal-header">
-        <h3><svg class="icon icon-lg"><use href="#icon-globe"></use></svg> <span data-i18n="urlTitle">网页转 Markdown</span></h3>
-        <button onclick="closeUrlModal()"><svg class="icon"><use href="#icon-close"></use></svg></button>
+        <h3 id="url-modal-title"><svg class="icon icon-lg"><use href="#icon-globe"></use></svg> <span data-i18n="urlTitle">网页转 Markdown</span></h3>
+        <button onclick="closeUrlModal()" data-i18n-title="cancel"><svg class="icon"><use href="#icon-close"></use></svg></button>
       </div>
       <div class="modal-body">
         <label for="url-input" data-i18n="urlLabel">网页地址</label>
@@ -1251,50 +1341,53 @@
           <input type="checkbox" id="use-local-proxy" style="width:auto;margin:0;" onchange="toggleProxyInput()">
           <label for="use-local-proxy" style="display:inline;margin:0;font-weight:normal;cursor:pointer;" data-i18n="useProxy">使用本地代理（推荐，可解决知乎/微信公众号）</label>
         </div>
-        <input type="url" id="proxy-url" value="http://localhost:8765/fetch" data-i18n-placeholder="proxyPlaceholder" placeholder="本地代理地址" style="display:none;margin-bottom:10px;">
+        <input type="url" id="proxy-url" value="http://127.0.0.1:8765/fetch" data-i18n-placeholder="proxyPlaceholder" placeholder="本地代理地址" style="display:none;margin-bottom:10px;">
+        <input type="password" id="proxy-token" autocomplete="off" data-i18n-placeholder="proxyPairing" style="display:none;margin-bottom:10px;">
         <button onclick="fetchUrl()" class="primary" data-i18n="fetchBtn">尝试获取</button>
-        <div id="url-status" style="margin-top:10px;font-size:13px;color:var(--text-muted);"></div>
-        <div id="manual-area" style="display:none;margin-top:14px;">
+        <div id="url-status" role="status" style="margin-top:10px;font-size:13px;color:var(--text-muted);"></div>
+        <div id="manual-area" style="margin-top:14px;">
           <label for="manual-html" data-i18n="manualLabel">网页 HTML 源码（手动粘贴）</label>
           <textarea id="manual-html" rows="6" data-i18n-placeholder="manualPlaceholder" placeholder="在浏览器中打开目标网页 → 右键「查看网页源代码」→ 全选复制 → 粘贴到此处"></textarea>
         </div>
       </div>
       <div class="modal-footer">
         <button onclick="closeUrlModal()" data-i18n="cancel">取消</button>
-        <button onclick="convertAndInsert()" class="primary" data-i18n="convertInsert">转换并插入</button>
+        <button onclick="convertAndInsert()" class="primary" data-i18n="convertInsert" data-edit-action>转换并插入</button>
       </div>
     </div>
   </div>
 
   <!-- 查找与替换模态框 -->
-  <div class="modal-overlay" id="find-modal">
+  <div class="modal-overlay" id="find-modal" role="dialog" aria-modal="true" aria-labelledby="find-modal-title">
     <div class="modal" style="max-width: 440px;">
       <div class="modal-header">
-        <h3><svg class="icon icon-lg"><use href="#icon-search"></use></svg> <span data-i18n="findTitle">查找与替换</span></h3>
-        <button onclick="closeFindModal()"><svg class="icon"><use href="#icon-close"></use></svg></button>
+        <h3 id="find-modal-title"><svg class="icon icon-lg"><use href="#icon-search"></use></svg> <span data-i18n="findTitle">查找与替换</span></h3>
+        <button onclick="closeFindModal()" data-i18n-title="cancel"><svg class="icon"><use href="#icon-close"></use></svg></button>
       </div>
       <div class="modal-body">
         <label for="find-input" data-i18n="findLabel">查找</label>
         <input type="text" id="find-input" data-i18n-placeholder="findPlaceholder" placeholder="要查找的内容">
         <label for="replace-input" data-i18n="replaceLabel">替换为</label>
-        <input type="text" id="replace-input" data-i18n-placeholder="replacePlaceholder" placeholder="替换后的内容">
-        <div id="find-status" style="margin-top: 8px; font-size: 13px; color: var(--text-muted);"></div>
+        <input type="text" id="replace-input" data-i18n-placeholder="replacePlaceholder" placeholder="替换后的内容" data-edit-action>
+        <textarea id="replace-preview" rows="6" readonly aria-label="Replacement preview" data-i18n-title="writingReplacePreview" hidden></textarea>
+        <div id="find-status" role="status" style="margin-top: 8px; font-size: 13px; color: var(--text-muted);"></div>
       </div>
       <div class="modal-footer">
         <button onclick="closeFindModal()" data-i18n="cancel">关闭</button>
-        <button onclick="replaceAll()" data-i18n="replaceAll">全部替换</button>
-        <button onclick="replaceOne()" data-i18n="replaceOne">替换</button>
+        <button onclick="previewReplaceAll()" data-i18n="writingReplacePreview" data-edit-action>预览替换</button>
+        <button id="apply-replace-all" onclick="replaceAll()" data-i18n="replaceAll" disabled>全部替换</button>
+        <button onclick="replaceOne()" data-i18n="replaceOne" data-edit-action>替换</button>
         <button onclick="findNext()" class="primary" data-i18n="findNext">查找下一个</button>
       </div>
     </div>
   </div>
 
   <!-- 导出图片模态框 -->
-  <div class="modal-overlay" id="export-image-modal">
+  <div class="modal-overlay" id="export-image-modal" role="dialog" aria-modal="true" aria-labelledby="export-image-modal-title">
     <div class="modal" style="max-width: 640px;">
       <div class="modal-header">
-        <h3><svg class="icon icon-lg"><use href="#icon-image"></use></svg> <span data-i18n="exportImageTitle">导出图片</span></h3>
-        <button onclick="closeExportImageModal()"><svg class="icon"><use href="#icon-close"></use></svg></button>
+        <h3 id="export-image-modal-title"><svg class="icon icon-lg"><use href="#icon-image"></use></svg> <span data-i18n="exportImageTitle">导出图片</span></h3>
+        <button onclick="closeExportImageModal()" data-i18n-title="cancel"><svg class="icon"><use href="#icon-close"></use></svg></button>
       </div>
       <div class="modal-body">
         <label data-i18n="ratioLabel">分享比例</label>
@@ -1306,10 +1399,13 @@
           <button class="ratio-btn" data-ratio="16:9" onclick="selectImageRatio('16:9')">16:9<br><small data-i18n="ratio16_9">横图</small></button>
         </div>
         <div class="option-row">
-          <input type="checkbox" id="image-crop-fit" onchange="renderExportImagePreview()">
+          <input type="checkbox" id="image-crop-fit">
           <label for="image-crop-fit" data-i18n="cropLabel">过长时裁剪为固定比例（默认生成长图）</label>
         </div>
         <label data-i18n="previewLabel">预览</label>
+        <label><input type="checkbox" id="png-split"> <span data-i18n="exportSplit">按页高分片</span></label>
+        <p id="png-resource-status" role="status"></p>
+        <button type="button" id="png-continue" data-i18n="exportContinue" hidden>继续导出</button>
         <div id="export-image-preview-wrap">
           <img id="export-image-preview" alt="导出预览" data-i18n-alt="exportImagePreviewAlt" style="display:none;">
         </div>
@@ -1318,17 +1414,17 @@
       <div class="modal-footer">
         <button onclick="closeExportImageModal()" data-i18n="cancel">取消</button>
         <button onclick="renderExportImagePreview()" data-i18n="refreshPreview">刷新预览</button>
-        <button onclick="downloadExportImage()" class="primary" data-i18n="downloadPng">下载 PNG</button>
+        <button id="png-download" onclick="downloadExportImage()" class="primary" data-i18n="downloadPng">下载 PNG</button>
       </div>
     </div>
   </div>
 
   <!-- 插入图片模态框 -->
-  <div class="modal-overlay" id="image-modal">
+  <div class="modal-overlay" id="image-modal" role="dialog" aria-modal="true" aria-labelledby="image-modal-title">
     <div class="modal" style="max-width: 520px;">
       <div class="modal-header">
-        <h3><svg class="icon icon-lg"><use href="#icon-image"></use></svg> <span data-i18n="imageTitle">插入图片</span></h3>
-        <button onclick="closeImageModal()"><svg class="icon"><use href="#icon-close"></use></svg></button>
+        <h3 id="image-modal-title"><svg class="icon icon-lg"><use href="#icon-image"></use></svg> <span data-i18n="imageTitle">插入图片</span></h3>
+        <button onclick="closeImageModal()" data-i18n-title="cancel"><svg class="icon"><use href="#icon-close"></use></svg></button>
       </div>
       <div class="modal-body">
         <div class="image-modal-tabs">
@@ -1350,21 +1446,21 @@
           <label for="image-upload-alt" data-i18n="imageAltLabel">描述文字</label>
           <input type="text" id="image-upload-alt" data-i18n-placeholder="imageAltPlaceholder" placeholder="图片描述">
         </div>
-        <p class="hint" data-i18n="imageHint">本地图片将以 Base64 嵌入文档，文件过大可能影响性能和保存。</p>
+        <p class="hint" data-i18n="attachmentHint">支持附件存储时，图片会随草稿保存在浏览器中。</p>
       </div>
       <div class="modal-footer">
         <button onclick="closeImageModal()" data-i18n="cancel">取消</button>
-        <button onclick="confirmImageInsert()" class="primary" data-i18n="insert">插入</button>
+        <button onclick="confirmImageInsert()" class="primary" data-i18n="insert" data-edit-action>插入</button>
       </div>
     </div>
   </div>
 
   <!-- 插入 Mermaid 模态框 -->
-  <div class="modal-overlay" id="mermaid-modal">
+  <div class="modal-overlay" id="mermaid-modal" role="dialog" aria-modal="true" aria-labelledby="mermaid-modal-title">
     <div class="modal" style="max-width: 560px;">
       <div class="modal-header">
-        <h3><svg class="icon icon-lg"><use href="#icon-mermaid"></use></svg> <span data-i18n="mermaidTitle">插入 Mermaid 图表</span></h3>
-        <button onclick="closeMermaidModal()"><svg class="icon"><use href="#icon-close"></use></svg></button>
+        <h3 id="mermaid-modal-title"><svg class="icon icon-lg"><use href="#icon-mermaid"></use></svg> <span data-i18n="mermaidTitle">插入 Mermaid 图表</span></h3>
+        <button onclick="closeMermaidModal()" data-i18n-title="cancel"><svg class="icon"><use href="#icon-close"></use></svg></button>
       </div>
       <div class="modal-body">
         <label for="mermaid-type" data-i18n="mermaidTypeLabel">图表类型</label>
@@ -1378,20 +1474,123 @@
       </div>
       <div class="modal-footer">
         <button onclick="closeMermaidModal()" data-i18n="cancel">取消</button>
-        <button onclick="confirmMermaidInsert()" class="primary" data-i18n="insert">插入</button>
+        <button onclick="confirmMermaidInsert()" class="primary" data-i18n="insert" data-edit-action>插入</button>
       </div>
     </div>
   </div>
 
   <!-- Marked.js：体积约 40KB，CDN 加载，离线也可编辑（预览降级为纯文本） -->
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@3.5.0/dist/dom-to-image-more.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/docx@9.7.1/dist/index.iife.js"></script>
+  <div class="modal-overlay" id="recovery-modal" role="dialog" aria-modal="true" aria-labelledby="recovery-title">
+    <section class="modal">
+      <header class="modal-header"><h3 id="recovery-title" data-i18n="recoveryTitle">恢复点</h3></header>
+      <div class="modal-body">
+        <p id="recovery-status" role="status"></p>
+        <label for="recovery-list" data-i18n="recoveryVersion">版本</label>
+        <select id="recovery-list"></select>
+        <textarea id="recovery-preview" rows="8" readonly aria-labelledby="recovery-title"></textarea>
+        <label for="recovery-local" data-i18n="recoveryLocal">当前稿</label>
+        <textarea id="recovery-local" rows="5" readonly></textarea>
+      </div>
+      <footer class="modal-footer">
+        <button type="button" onclick="migrateInlinePictures().then(ok => { if (ok) closeRecovery(); })" data-i18n="attachmentMigrate" data-edit-action>提取内嵌图片</button>
+        <button type="button" onclick="closeRecovery()" data-i18n="cancel">关闭</button>
+        <button type="button" onclick="downloadRecovery(false)" data-i18n="recoveryLocal">当前稿</button>
+        <button type="button" onclick="downloadRecovery(true)" data-i18n="recoveryDownload">下载版本</button>
+        <button type="button" id="recovery-apply" onclick="restoreRecovery()" data-i18n="recoveryRestore">恢复</button>
+      </footer>
+    </section>
+  </div>
+  <div class="modal-overlay" id="export-settings" role="dialog" aria-modal="true" aria-labelledby="export-settings-title">
+    <section class="modal">
+      <header class="modal-header"><h3 id="export-settings-title" data-i18n="exportLayout">导出版式</h3></header>
+      <div class="modal-body">
+        <label for="export-paper" data-i18n="exportPaper">纸张</label>
+        <select id="export-paper"><option value="default" data-i18n="exportPaperAuto">自动</option><option>A4</option><option>Letter</option></select>
+        <label for="export-margin" data-i18n="exportMargins">页边距 (mm)</label>
+        <input type="number" id="export-margin" min="5" max="45" value="25">
+        <p data-i18n="exportPrintHint">可在浏览器打印对话框调整 PDF 的最终设置。</p>
+      </div>
+      <footer class="modal-footer"><button type="button" onclick="closeExportSettings()" data-i18n="cancel">关闭</button></footer>
+    </section>
+  </div>
+  <div class="modal-overlay" id="export-check" role="dialog" aria-modal="true" aria-labelledby="export-check-title">
+    <section class="modal">
+      <header class="modal-header"><h3 id="export-check-title" data-i18n="exportChecking">检查导出资源</h3></header>
+      <div class="modal-body"><p id="export-check-status" role="status"></p></div>
+      <footer class="modal-footer">
+        <button type="button" onclick="cancelExportCheck()" data-i18n="cancel">取消</button>
+        <button type="button" id="export-continue" data-i18n="exportContinue" disabled>继续导出</button>
+      </footer>
+    </section>
+  </div>
+  <div class="modal-overlay" id="workspace-modal" role="dialog" aria-modal="true" aria-labelledby="workspace-title">
+    <section class="modal">
+      <header class="modal-header"><h3 id="workspace-title" data-i18n="workspaceTitle">文档</h3></header>
+      <div class="modal-body">
+        <label for="workspace-search" data-i18n="workspaceSearch">搜索文档</label>
+        <input id="workspace-search" type="search" data-i18n-placeholder="workspaceSearch">
+        <label for="workspace-list" data-i18n="workspaceRecent">最近文档</label>
+        <select id="workspace-list" size="6"></select>
+        <label for="workspace-tags" data-i18n="workspaceTags">当前文档标签（逗号分隔）</label>
+        <input type="text" id="workspace-tags">
+        <p id="workspace-status" role="status"></p>
+        <input type="file" id="workspace-restore-file" accept=".zip" hidden>
+      </div>
+      <footer class="modal-footer">
+        <button type="button" onclick="closeWorkspace()" data-i18n="cancel">关闭</button>
+        <button type="button" onclick="newWorkspaceDocument()" data-i18n="workspaceNew">新建文档</button>
+        <button type="button" onclick="selectWorkspaceDocument()" data-i18n="workspaceOpen">打开</button>
+        <button type="button" onclick="saveWorkspaceTags()" data-i18n="workspaceSaveTags">保存标签</button>
+        <button type="button" onclick="downloadWorkspace()" data-i18n="workspaceBackup">备份</button>
+        <button type="button" onclick="document.getElementById('workspace-restore-file').click()" data-i18n="workspaceRestore">恢复备份</button>
+      </footer>
+    </section>
+  </div>
+  <div class="modal-overlay" id="outline-modal" role="dialog" aria-modal="true" aria-labelledby="outline-title">
+    <section class="modal">
+      <header class="modal-header"><h3 id="outline-title" data-i18n="writingOutline">标题大纲</h3></header>
+      <div class="modal-body">
+        <label for="outline-list" data-i18n="writingOutline">标题大纲</label>
+        <select id="outline-list" size="9"></select>
+        <p id="outline-status" role="status"></p>
+      </div>
+      <footer class="modal-footer">
+        <button type="button" onclick="closeOutline()" data-i18n="cancel">关闭</button>
+        <button type="button" onclick="jumpToHeading()" data-i18n="writingJump">跳转</button>
+      </footer>
+    </section>
+  </div>
+  <div class="modal-overlay" id="template-modal" role="dialog" aria-modal="true" aria-labelledby="template-title">
+    <section class="modal">
+      <header class="modal-header"><h3 id="template-title" data-i18n="writingTemplates">写作模板</h3></header>
+      <div class="modal-body">
+        <label for="template-list" data-i18n="writingTemplates">写作模板</label>
+        <select id="template-list">
+          <option value="readme">README</option>
+          <option value="meeting" data-i18n="templateMeeting">会议纪要</option>
+          <option value="technical" data-i18n="templateTechnical">技术文档</option>
+        </select>
+        <textarea id="template-content" rows="12" readonly aria-labelledby="template-title"></textarea>
+      </div>
+      <footer class="modal-footer">
+        <button type="button" onclick="closeTemplates()" data-i18n="cancel">关闭</button>
+        <button type="button" onclick="insertTemplate()" data-i18n="insert" data-edit-action>插入</button>
+      </footer>
+    </section>
+  </div>
+  <script src="vendor/marked.umd.js"></script>
+  <script src="vendor/purify.min.js"></script>
   <script src="i18n.js"></script>
+  <script src="draft-storage.js"></script>
+  <script src="vendor/fflate.js"></script>
+  <script src="editor-attachments.js"></script>
+  <script src="editor-workspace.js"></script>
+  <script src="editor-list-format.js"></script>
+  <script src="render-content.js"></script>
   <script>
+    const listStyleSheet = document.createElement('style');
+    listStyleSheet.textContent = editorListFormat.css();
+    document.head.append(listStyleSheet);
     const editor = document.getElementById('editor');
     const preview = document.getElementById('preview');
     const previewSource = document.getElementById('preview-source');
@@ -1400,8 +1599,19 @@
     const saveHint = document.getElementById('save-hint');
     const toast = document.getElementById('toast');
 
-    const STORAGE_KEY = 'md_editor_content';
-    const FILENAME_KEY = 'md_editor_filename';
+    const preferences = {
+      getItem(key) { try { return localStorage.getItem(key); } catch (_) { return null; } },
+      setItem(key, value) { try { localStorage.setItem(key, value); } catch (_) {} }
+    };
+    let draft = { text: '', filename: '', revision: 0 };
+    let savedDraft = draft;
+    let ready = false;
+    let historyUnavailable = false;
+    let storageReady = false;
+    let saveStatus = 'autosaveEnabled';
+    let saveTimer;
+    let saving;
+    let importSequence = 0;
     const THEME_KEY = 'md_editor_theme';
     const HELP_SHOWN_KEY = 'md_editor_help_shown';
     const RATIO_KEY = 'md_editor_ratio';
@@ -1417,13 +1627,13 @@
       const dict = i18n[currentLang] || i18n['zh-CN'];
       let str = dict[key];
       if (str === undefined) str = i18n['zh-CN'][key] || key;
-      return args.reduce((s, arg, i) => s.replace(new RegExp('\\{' + i + '\\}', 'g'), String(arg)), str);
+      return args.reduce((s, arg, i) => s.replace(new RegExp('\\{' + i + '\\}', 'g'), () => String(arg)), str);
     }
 
     function setLanguage(lang) {
       if (!i18n[lang]) lang = 'zh-CN';
       currentLang = lang;
-      localStorage.setItem(LANG_KEY, lang);
+      preferences.setItem(LANG_KEY, lang);
       applyLanguage();
     }
 
@@ -1436,6 +1646,7 @@
       document.querySelectorAll('[data-i18n-title]').forEach(el => {
         const key = el.dataset.i18nTitle;
         el.title = t(key);
+        if (el.tagName === 'BUTTON') el.setAttribute('aria-label', t(key));
       });
       document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
         const key = el.dataset.i18nPlaceholder;
@@ -1452,6 +1663,8 @@
       }
 
       updateCollapseBtnLabels();
+      document.querySelectorAll('.table-grid-cell').forEach(cell =>
+        cell.setAttribute('aria-label', t('tableSizeLabel', cell.dataset.row, cell.dataset.col)));
       updateViewMenuLabel();
       updateStatusBar();
       updateCount();
@@ -1468,7 +1681,7 @@
       const statusLeft = document.getElementById('status-left');
       const statusRight = document.getElementById('status-right');
       const saveHint = document.getElementById('save-hint');
-      if (statusLeft) statusLeft.textContent = t('autosaveEnabled');
+      if (statusLeft) statusLeft.textContent = t(saveStatus);
       if (statusRight) statusRight.textContent = t('statusShortcuts');
       if (saveHint) saveHint.textContent = '✓ ' + t('saved');
     }
@@ -1480,41 +1693,108 @@
     function closeLangMenu() {
       document.getElementById('lang-menu').classList.remove('show');
     }
-    let fetchedHtml = '';
+    let webFetch;
     let editorCollapsed = false;
     let previewCollapsed = false;
     let editorRatio = 0.5;
     let isResizing = false;
     let resizeRect = null;
 
-    if (typeof marked !== 'undefined') {
-      marked.setOptions({
-        breaks: true,
-        gfm: true,
-        headerIds: false,
-        mangle: false
+    const optionalLibraries = {
+      "katex": {
+        "url": "https://cdn.jsdelivr.net/npm/katex@0.19.1/dist/katex.min.js",
+        "integrity": "sha384-a1WQdjRj162i159OYq041X6I4K8NenkrI09LlPmiHg0YOb7CR+wJOraXwK9abpnE"
+      },
+      "math": {
+        "url": "https://cdn.jsdelivr.net/npm/katex@0.19.1/dist/contrib/auto-render.min.js",
+        "integrity": "sha384-bjyGPfbij8/NDKJhSGZNP/khQVgtHUE5exjm4Ydllo42FwIgYsdLO2lXGmRBf5Mz"
+      },
+      "mermaid": {
+        "url": "https://cdn.jsdelivr.net/npm/mermaid@10.9.8/dist/mermaid.min.js",
+        "integrity": "sha384-N3QqR/7q+xm3BGX+CBbNI8AUmRRqcsDzToy+0z1NLDI0QmTKW8zvwLvqulJgk3dP"
+      },
+      "docx": {
+        "url": "https://cdn.jsdelivr.net/npm/docx@9.7.1/dist/index.iife.js",
+        "integrity": "sha384-9OH56uLhIvkZkwF0jWNlfpcK3gPuSy5DfEMNqKe156wCpkND+MDdtaRyd05kwpG0"
+      },
+      "png": {
+        "url": "https://cdn.jsdelivr.net/npm/dom-to-image-more@3.5.0/dist/dom-to-image-more.min.js",
+        "integrity": "sha384-0PEs9VXKn6x/atQ5H1woMo0cQQnIz11UdqMzjvkDj+U+vxY4xwwj9J+gsbvLNcL9"
+      },
+      "katexCss": {
+        "url": "https://cdn.jsdelivr.net/npm/katex@0.19.1/dist/katex.min.css",
+        "integrity": "sha384-WwGtaC6ywCHxA5cstpj/3+xIZvTez8dq2IcBQaXRkenHZ7FVVq1ZROtURwfbtTlG"
+      }
+    };
+    const libraryLoads = new Map();
+    function loadLibrary(name) {
+      if (!libraryLoads.has(name)) {
+        const load = new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          const { url, integrity } = optionalLibraries[name];
+          const timeout = setTimeout(() => fail(), 12000);
+          function fail() {
+            clearTimeout(timeout);
+            script.remove();
+            reject(new Error(name));
+          }
+          script.src = url;
+          if (/^https?:/.test(url)) script.integrity = integrity;
+          if (/^https?:/.test(url)) script.crossOrigin = 'anonymous';
+          script.onload = () => { clearTimeout(timeout); resolve(); };
+          script.onerror = fail;
+          document.head.append(script);
+        }).catch(error => {
+          libraryLoads.delete(name);
+          throw error;
+        });
+        libraryLoads.set(name, load);
+      }
+      return libraryLoads.get(name);
+    }
+
+    async function enableMath() {
+      if (!document.getElementById('katex-styles')) {
+        const style = document.createElement('link');
+        style.id = 'katex-styles';
+        const { url, integrity } = optionalLibraries.katexCss;
+        style.rel = 'stylesheet';
+        style.href = url;
+        if (/^https?:/.test(url)) style.integrity = integrity;
+        if (/^https?:/.test(url)) style.crossOrigin = 'anonymous';
+        document.head.append(style);
+      }
+      await loadLibrary('katex');
+      await loadLibrary('math');
+    }
+
+    async function enableMermaid() {
+      await loadLibrary('mermaid');
+      mermaid.initialize({
+        startOnLoad: false, securityLevel: 'strict', htmlLabels: false,
+        flowchart: { htmlLabels: false },
+        theme: document.body.dataset.theme === 'dark' ? 'dark' : 'default'
       });
     }
 
     const LAYOUT_MODE_KEY = 'md_editor_layout_mode';
     const PAGE_FULLSCREEN_KEY = 'md_editor_page_fullscreen';
     const MAX_HISTORY = 100;
+    const HISTORY_BYTES = 16 * 1024 * 1024;
+    const LARGE_DOCUMENT = 80000;
+    let previewPaused = false;
+    let renderTimer;
+    const pauseButton = document.getElementById('preview-pause');
     let historyStack = [];
     let historyIndex = -1;
-    let lastHistoryText = null;
     let historyTimer = null;
 
     function togglePane(pane) {
       if (pane === 'editor') {
-        if (!editorCollapsed && previewCollapsed) return;
-        editorCollapsed = !editorCollapsed;
+        if (!previewCollapsed) setLayoutMode(editorCollapsed ? 'both' : 'preview');
       } else {
-        if (!previewCollapsed && editorCollapsed) return;
-        previewCollapsed = !previewCollapsed;
+        if (!editorCollapsed) setLayoutMode(previewCollapsed ? 'both' : 'edit');
       }
-      applyPaneStates();
-      localStorage.setItem(EDITOR_COLLAPSED_KEY, editorCollapsed);
-      localStorage.setItem(PREVIEW_COLLAPSED_KEY, previewCollapsed);
     }
 
     function applyPaneStates() {
@@ -1532,6 +1812,8 @@
       const chevronRight = '<svg class="icon icon-sm"><use href="#icon-chevron-right"></use></svg>';
       editorBtn.innerHTML = editorCollapsed ? chevronRight : chevronLeft;
       previewBtn.innerHTML = previewCollapsed ? chevronLeft : chevronRight;
+      editorBtn.disabled = previewCollapsed;
+      previewBtn.disabled = editorCollapsed;
 
       updateCollapseBtnLabels();
 
@@ -1578,7 +1860,7 @@
       let ratio = (clientX - resizeRect.left) / resizeRect.width;
       ratio = Math.max(0.15, Math.min(0.85, ratio));
       editorRatio = ratio;
-      localStorage.setItem(RATIO_KEY, editorRatio);
+      preferences.setItem(RATIO_KEY, editorRatio);
       applySplit();
     }
 
@@ -1608,136 +1890,131 @@
     preview.addEventListener('scroll', () => syncScroll(preview, editor));
 
     // 初始化：恢复内容、文件名、主题
-    function init() {
-      const savedLang = localStorage.getItem(LANG_KEY);
+    async function init() {
+      if (window.location.protocol === 'file:') document.getElementById('offline-download').hidden = true;
+      const savedLang = preferences.getItem(LANG_KEY);
       if (savedLang && i18n[savedLang]) currentLang = savedLang;
-
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved !== null) {
-        editor.value = saved;
-      } else {
-        editor.value = i18n[currentLang].welcomeDoc;
+      editor.disabled = previewSource.disabled = filenameInput.disabled = true;
+      let restored;
+      try {
+        restored = await draftStorage.open();
+        storageReady = true;
+        const lastId = preferences.getItem('md_editor_active_document');
+        if (lastId && lastId !== draftStorage.defaultId && draftStorage.canRecover()) {
+          restored = await draftStorage.read(lastId) || restored;
+        }
+      } catch (_) {
+        setSaveStatus('draftSaveFailed');
       }
-      filenameInput.value = localStorage.getItem(FILENAME_KEY) || t('filenameDefault');
-      const theme = localStorage.getItem(THEME_KEY) || 'light';
+      draft = restored ? { ...restored, filename: restored.filename ?? t('filenameDefault') }
+        : { text: i18n[currentLang].welcomeDoc, filename: t('filenameDefault'), revision: 0, id: draftStorage.defaultId };
+      savedDraft = draft;
+      reflectDraft();
+      const theme = preferences.getItem(THEME_KEY) || 'light';
       document.body.setAttribute('data-theme', theme);
 
-      if (typeof mermaid !== 'undefined') {
-        mermaid.initialize({
-          startOnLoad: false,
-          theme: theme === 'dark' ? 'dark' : 'default'
-        });
-      }
 
-      const savedRatio = localStorage.getItem(RATIO_KEY);
+      const savedRatio = preferences.getItem(RATIO_KEY);
       if (savedRatio !== null) {
         const parsed = parseFloat(savedRatio);
         if (!isNaN(parsed)) editorRatio = parsed;
       }
-      editorCollapsed = localStorage.getItem(EDITOR_COLLAPSED_KEY) === 'true';
-      previewCollapsed = localStorage.getItem(PREVIEW_COLLAPSED_KEY) === 'true';
-      const savedPreviewMode = localStorage.getItem(PREVIEW_MODE_KEY);
-      if (savedPreviewMode === 'preview' || savedPreviewMode === 'source') {
-        previewMode = savedPreviewMode;
-      }
-
-      updatePreview();
-      updateCount();
-      applyPaneStates();
-      setPreviewMode(previewMode);
+      const savedPreviewMode = preferences.getItem(PREVIEW_MODE_KEY);
 
       // 初始化历史记录
-      historyStack = [editor.value];
+      historyStack = [snapshot()];
       historyIndex = 0;
-      lastHistoryText = editor.value;
-
-      // 默认打开为编辑 + 预览双栏；仅恢复用户明确的“仅编辑”或“双栏”状态
-      const savedLayoutMode = localStorage.getItem(LAYOUT_MODE_KEY);
-      if (savedLayoutMode === 'edit' || savedLayoutMode === 'both') {
-        setLayoutMode(savedLayoutMode);
-      } else {
-        setLayoutMode('both');
-      }
-      updateViewMenuLabel();
+      ready = true;
+      const savedLayoutMode = preferences.getItem(LAYOUT_MODE_KEY);
+      const oldEditorCollapsed = preferences.getItem(EDITOR_COLLAPSED_KEY) === 'true';
+      const oldPreviewCollapsed = preferences.getItem(PREVIEW_COLLAPSED_KEY) === 'true';
+      const oldLayout = oldEditorCollapsed === oldPreviewCollapsed ? 'both' : oldEditorCollapsed ? 'preview' : 'edit';
+      setLayoutMode(['both', 'edit', 'preview'].includes(savedLayoutMode) ? savedLayoutMode : oldLayout);
+      setPreviewMode(savedPreviewMode === 'source' && !editorCollapsed ? 'source' : 'preview');
 
       // 恢复页面全屏
-      if (localStorage.getItem(PAGE_FULLSCREEN_KEY) === 'true') {
+      if (preferences.getItem(PAGE_FULLSCREEN_KEY) === 'true') {
         document.querySelector('.app').classList.add('page-fullscreen');
         document.body.classList.add('page-fullscreen-active');
       }
 
-      if (!localStorage.getItem(HELP_SHOWN_KEY)) {
+      if (!preferences.getItem(HELP_SHOWN_KEY)) {
         openHelp();
       }
       applyLanguage();
     }
 
-    // 渲染预览
-    function updatePreview() {
-      let text = editor.value;
-      let placeholders = [];
+    // The preview renders a detached, sanitized snapshot of the current draft.
+    let previewTask;
+    let previewGeneration = 0;
+    let renderedPreviewText;
 
-      if (typeof renderMathInElement !== 'undefined') {
-        const protected = protectMath(text);
-        text = protected.text;
-        placeholders = protected.placeholders;
+    function schedulePreview() {
+      clearTimeout(renderTimer);
+      if (previewPaused) return;
+      if (draft.text.length < LARGE_DOCUMENT) {
+        updatePreview();
+        return;
       }
-
-      let html = '';
-      if (typeof marked !== 'undefined') {
-        html = marked.parse(text);
-      } else {
-        html = '<pre style="white-space:pre-wrap">' + escapeHtml(text) + '</pre>';
-      }
-
-      if (placeholders.length) {
-        html = restoreMath(html, placeholders);
-      }
-
-      preview.innerHTML = '<div class="markdown-body">' + html + '</div>';
-      styleTaskLists();
-
-      if (typeof renderMathInElement !== 'undefined') {
-        renderMathInElement(preview, {
-          delimiters: [
-            { left: '$$', right: '$$', display: true },
-            { left: '$', right: '$', display: false }
-          ],
-          throwOnError: false
-        });
-      }
-
-      renderMermaidBlocks();
+      previewGeneration++;
+      renderTimer = setTimeout(updatePreview, 180);
     }
 
-    function protectMath(text) {
-      const placeholders = [];
-      let counter = 0;
-
-      const parts = text.split(/(```[\s\S]*?```|`[^`\n]*`)/g);
-      const out = parts.map(part => {
-        if (part.startsWith('```') || part.startsWith('`')) return part;
-
-        part = part.replace(/\$\$[\s\S]*?\$\$/g, m => store(m));
-        part = part.replace(/(^|[^\\])\$([^$\n]+?)\$/g, (m, p1) => p1 + store(m.slice(p1.length)));
-
-        return part;
-      }).join('');
-
-      return { text: out, placeholders };
-
-      function store(match) {
-        const key = '<!--MATH' + counter++ + '-->';
-        placeholders.push({ key, value: match });
-        return key;
-      }
-    }
-
-    function restoreMath(html, placeholders) {
-      placeholders.forEach(({ key, value }) => {
-        html = html.split(key).join(value);
+    pauseButton.addEventListener('click', () => {
+      previewPaused = !previewPaused;
+      pauseButton.dataset.i18n = previewPaused ? 'previewResume' : 'previewPause';
+      pauseButton.textContent = t(pauseButton.dataset.i18n);
+      pauseButton.setAttribute('aria-pressed', String(previewPaused));
+      if (previewPaused) {
+        clearTimeout(renderTimer);
+        previewGeneration++;
+      } else updatePreview();
+    });
+    function updatePreview(force = false) {
+      clearTimeout(renderTimer);
+      if (previewPaused && !force) return previewTask;
+      const generation = ++previewGeneration;
+      const text = draft.text;
+      if (!text.includes('attachments/')) return renderPreview(text);
+      previewTask = editorAttachments.resolve(text).then(result => {
+        if (generation === previewGeneration) return renderPreview(text, result.text);
+      }).catch(() => {
+        if (generation === previewGeneration) showToast(t('attachmentError'));
       });
-      return html;
+      return previewTask;
+    }
+
+    function renderPreview(text, content = text) {
+      const body = markdownContent.fragment(content);
+      body.className = 'markdown-body';
+      preview.replaceChildren(body);
+      renderedPreviewText = text;
+      styleTaskLists();
+      const generation = previewGeneration;
+      previewTask = enhanceContent(body, () => body.isConnected && generation === previewGeneration);
+      return previewTask;
+    }
+
+    async function enhanceContent(body, current = () => true, notify = true) {
+      const issues = [];
+      const warn = key => {
+        issues.push(t(key));
+        if (notify && current()) showToast(t(key));
+      };
+      if (body.textContent.includes('$')) {
+        try {
+          await enableMath();
+          if (current()) renderMathInElement(body, { ...markdownContent.mathOptions,
+            errorCallback: () => warn('mathUnavailable') });
+        } catch (_) { if (current()) warn('mathUnavailable'); }
+      }
+      if (current() && body.querySelector('pre > code.language-mermaid')) {
+        try {
+          await enableMermaid();
+          if (current() && await markdownContent.diagrams(body) && current()) warn('diagramUnavailable');
+        } catch (_) { if (current()) warn('diagramUnavailable'); }
+      }
+      return [...new Set(issues)];
     }
 
     function styleTaskLists() {
@@ -1758,85 +2035,260 @@
 
     // 统计字数
     function updateCount() {
-      const text = editor.value;
+      const text = draft.text;
       const count = text.replace(/\s/g, '').length;
       wordCount.textContent = t('wordCount', count);
     }
 
     // 切换预览/源码模式
     function setPreviewMode(mode) {
+      if (mode === 'source' && !canEditDraft()) return;
       previewMode = mode;
-      localStorage.setItem(PREVIEW_MODE_KEY, previewMode);
+      preferences.setItem(PREVIEW_MODE_KEY, previewMode);
       document.querySelectorAll('.preview-toggle .toggle-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.mode === mode);
       });
       if (mode === 'preview') {
-        editor.value = previewSource.value;
         preview.style.display = '';
+        pauseButton.hidden = false;
         previewSource.style.display = 'none';
         updatePreview();
-        updateCount();
-        autoSave();
       } else {
-        previewSource.value = editor.value;
         preview.style.display = 'none';
+        pauseButton.hidden = true;
+        clearTimeout(renderTimer);
+        if (!previewPaused) previewGeneration++;
         previewSource.style.display = 'block';
         previewSource.focus();
       }
     }
 
-    // 自动保存
-    let saveTimer;
+    // 草稿沿用 Markdown 文件名，输入框编辑不带扩展名的部分。
+    function filenameStem(filename) {
+      return filename.replace(/\.(md|markdown)$/i, '');
+    }
+
+    function exportFilenameStem(filename) {
+      return filenameStem(filename).trim() || filenameStem(t('filenameDefault'));
+    }
+
+    function reflectDraft() {
+      if (editor.value !== draft.text) editor.value = draft.text;
+      if (previewSource.value !== draft.text) previewSource.value = draft.text;
+      const name = filenameStem(draft.filename);
+      if (filenameInput.value !== name) filenameInput.value = name;
+    }
+
+    function commitDraft(text, filename = draft.filename, history = 'step', render = true) {
+      if (!canEditDraft()) { reflectDraft(); return; }
+      if (text === draft.text && filename === draft.filename) return;
+      draft = { ...draft, text, filename };
+      reflectDraft();
+      clearTimeout(historyTimer);
+      if (history === 'typing') historyTimer = setTimeout(recordHistory, 400);
+      if (history === 'step') recordHistory();
+      autoSave();
+      updateCount();
+      if (render && previewMode === 'preview') schedulePreview();
+      if (activeDialog?.id === 'outline-modal') refreshOutline();
+      if (replacePlan && replacePlan.original !== draft.text) clearReplacePlan();
+    }
+
+    function setSaveStatus(key) {
+      saveStatus = key;
+      document.getElementById('status-left').textContent = t(key);
+      if (key !== 'autosaveEnabled') saveHint.classList.remove('show');
+    }
+
+    function dirtyDraft() {
+      return draft.text !== savedDraft.text || draft.filename !== savedDraft.filename || draft.tags !== savedDraft.tags;
+    }
+
     function autoSave() {
       clearTimeout(saveTimer);
-      saveTimer = setTimeout(() => {
-        localStorage.setItem(STORAGE_KEY, editor.value);
-        localStorage.setItem(FILENAME_KEY, filenameInput.value);
-        showSaveHint();
-      }, 500);
+      if (saveStatus !== 'draftConflict') setSaveStatus(storageReady ? 'draftPending' : 'draftSaveFailed');
+      saveTimer = setTimeout(saveToLocal, 300);
     }
 
-    function showSaveHint() {
-      saveHint.textContent = '✓ ' + t('saved');
-      saveHint.classList.add('show');
-      setTimeout(() => saveHint.classList.remove('show'), 1500);
+    async function saveToLocal() {
+      clearTimeout(saveTimer);
+      if (saving) {
+        await saving;
+        if (dirtyDraft() && saveStatus === 'draftPending') return saveToLocal();
+        return;
+      }
+      if (!ready || !storageReady) return;
+      if (!dirtyDraft()) {
+        setSaveStatus('autosaveEnabled');
+        return;
+      }
+      const pending = draft;
+      saving = (async () => {
+        try {
+          const saved = await draftStorage.save(pending, savedDraft.revision);
+          if (!saved) {
+            setSaveStatus('draftConflict');
+            return;
+          }
+          savedDraft = { ...saved, tags: pending.tags };
+          void saveCheckpoint(saved);
+          draft = { ...draft, revision: saved.revision, savedAt: saved.savedAt };
+          if (dirtyDraft()) autoSave();
+          else {
+            setSaveStatus('autosaveEnabled');
+            saveHint.textContent = '✓ ' + t('saved');
+            saveHint.classList.add('show');
+            setTimeout(() => saveHint.classList.remove('show'), 1500);
+          }
+        } catch (_) {
+          setSaveStatus('draftSaveFailed');
+        }
+      })();
+      await saving;
+      saving = null;
     }
 
-    // 手动保存
-    function saveToLocal() {
-      localStorage.setItem(STORAGE_KEY, editor.value);
-      localStorage.setItem(FILENAME_KEY, filenameInput.value);
-      showSaveHint();
-      showToast(t('toastSaved'));
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden' && dirtyDraft()) void saveToLocal();
+    });
+    window.addEventListener('pagehide', () => {
+      if (dirtyDraft()) void saveToLocal();
+    });
+    window.addEventListener('beforeunload', event => {
+      if (!dirtyDraft()) return;
+      void saveToLocal();
+      event.preventDefault();
+      event.returnValue = '';
+    });
+
+    async function saveCheckpoint(record, reason) {
+      try { historyUnavailable = !await draftStorage.checkpoint(record, reason); }
+      catch (_) { historyUnavailable = true; }
+    }
+
+    const recoveryDialog = document.getElementById('recovery-modal');
+    const recoveryList = document.getElementById('recovery-list');
+    let recoveryEntries = [];
+    let recoveryOpen = 0;
+
+    async function openRecovery() {
+      const request = ++recoveryOpen;
+      const current = draft;
+      showDialog(recoveryDialog);
+      recoveryEntries = [];
+      recoveryList.replaceChildren();
+      updateRecoveryPreview();
+      document.getElementById('recovery-local').value = current.text;
+      const status = document.getElementById('recovery-status');
+      status.textContent = t('draftPending');
+      let latest;
+      let history = [];
+      try {
+        [latest, history] = await Promise.all([draftStorage.read(current.id), draftStorage.revisions(current.id)]);
+      } catch (_) { historyUnavailable = true; }
+      if (request !== recoveryOpen || current.id !== draft.id) return;
+      recoveryEntries = latest && !history.some(entry => entry.text === latest.text && entry.filename === latest.filename)
+        ? [latest, ...history].slice(0, 10) : history;
+      status.textContent = [latest?.savedAt ? t('recoverySaved', new Date(latest.savedAt).toLocaleString(currentLang)) : '',
+        !draftStorage.canRecover() || historyUnavailable ? t('recoveryUnavailable') : '',
+        saveStatus === 'draftConflict' ? t('draftConflict') : '',
+        !recoveryEntries.length ? t('recoveryEmpty') : ''].filter(Boolean).join(' ');
+      recoveryList.replaceChildren(...recoveryEntries.map((entry, index) => {
+        const label = entry.savedAt ? new Date(entry.savedAt).toLocaleString(currentLang) : t('saved');
+        return new Option(label + ' · #' + entry.revision + ' · ' + entry.filename, String(index));
+      }));
+      updateRecoveryPreview();
+    }
+
+    function closeRecovery() {
+      recoveryOpen++;
+      dismissDialog(recoveryDialog);
+    }
+
+    function updateRecoveryPreview() {
+      const entry = recoveryEntries[recoveryList.selectedIndex];
+      document.getElementById('recovery-preview').value = entry?.text || '';
+      document.getElementById('recovery-apply').disabled = !canEditDraft() || !entry || saveStatus === 'draftConflict';
+    }
+    recoveryList.addEventListener('change', updateRecoveryPreview);
+
+    function downloadRecovery(history) {
+      const entry = history ? recoveryEntries[recoveryList.selectedIndex] : draft;
+      if (entry) void downloadMarkdown(entry);
+    }
+
+    async function restoreRecovery() {
+      const entry = recoveryEntries[recoveryList.selectedIndex];
+      if (!canEditDraft() || !entry || saveStatus === 'draftConflict') return;
+      const before = draft;
+      await saveCheckpoint(before, 'restore');
+      if (!canEditDraft() || before !== draft) return;
+      pushHistory();
+      commitDraft(entry.text, entry.filename);
+      closeRecovery();
+      await saveToLocal();
     }
 
     // 导出文件
-    function exportFile() {
-      const blob = new Blob([editor.value], { type: 'text/markdown;charset=utf-8' });
+    function exportFile() { return downloadMarkdown(draft); }
+
+    async function downloadMarkdown(entry) {
+      const result = await editorAttachments.resolve(entry.text).catch(() => ({ text: entry.text, missing: [true] }));
+      const blob = new Blob([result.text], { type: 'text/markdown;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      let name = filenameInput.value.trim();
-      if (!name) name = '未命名文档.md';
-      if (!name.toLowerCase().endsWith('.md') && !name.toLowerCase().endsWith('.markdown')) {
-        name += '.md';
-      }
       a.href = url;
-      a.download = name;
+      a.download = exportFilenameStem(entry.filename) + '.md';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      showToast(t('toastExported'));
+      showToast(t(result.missing.length ? 'attachmentError' : 'toastExported'));
     }
 
 
     // ─── DOCX 导出：生成真正的 OOXML DOCX 文件 ───
 
     // 解析内联 DOM 节点为 docx TextRun / ExternalHyperlink 数组
-    function parseInline(node, baseFmt) {
+    async function downloadAttachmentBundle() {
+      const entry = draft;
+      try { await editorAttachments.downloadBundle(entry.text, exportFilenameStem(entry.filename)); }
+      catch (_) { showToast(t('attachmentError')); }
+    }
+
+    async function docxImage(node, context) {
+      const src = markdownContent.safeUrl(node.getAttribute('src'), document.baseURI, true);
+      try {
+        if (!src) throw new Error('Invalid image');
+        const response = await fetch(src, { signal: AbortSignal.timeout(8000) });
+        if (!response.ok) throw new Error('Image request failed');
+        const blob = await response.blob();
+        const bitmap = await createImageBitmap(blob);
+        try {
+          const scale = Math.min(1, 600 / bitmap.width, 780 / bitmap.height);
+          const width = Math.max(1, Math.round(bitmap.width * scale));
+          const height = Math.max(1, Math.round(bitmap.height * scale));
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          canvas.getContext('2d').drawImage(bitmap, 0, 0, width, height);
+          const png = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+          return new docx.ImageRun({
+            type: 'png', data: new Uint8Array(await png.arrayBuffer()), transformation: { width, height }
+          });
+        } finally {
+          bitmap.close();
+        }
+      } catch (_) {
+        context.missingImages++;
+        return new docx.TextRun({ text: node.alt || '[' + t('image') + ']', italics: true });
+      }
+    }
+
+    async function parseInline(node, baseFmt, context) {
       baseFmt = baseFmt || {};
       var runs = [];
-      (function walk(n, fmt) {
+      async function walk(n, fmt) {
         for (var i = 0; i < n.childNodes.length; i++) {
           var c = n.childNodes[i];
           if (c.nodeType === Node.TEXT_NODE) {
@@ -1845,11 +2297,11 @@
           } else if (c.nodeType === Node.ELEMENT_NODE) {
             var tg = c.tagName;
             if (tg === 'STRONG' || tg === 'B') {
-              walk(c, Object.assign({}, fmt, { bold: true }));
+              await walk(c, Object.assign({}, fmt, { bold: true }));
             } else if (tg === 'EM' || tg === 'I') {
-              walk(c, Object.assign({}, fmt, { italics: true }));
+              await walk(c, Object.assign({}, fmt, { italics: true }));
             } else if (tg === 'CODE') {
-              walk(c, Object.assign({}, fmt, {
+              await walk(c, Object.assign({}, fmt, {
                 font: "Consolas",
                 shading: { type: docx.ShadingType.SOLID, color: "F5F5F5", fill: "F5F5F5" }
               }));
@@ -1861,19 +2313,22 @@
                 link: href
               }));
             } else if (tg === 'IMG') {
-              runs.push(new docx.TextRun(Object.assign({
-                text: c.getAttribute('alt') || '[图片]', italics: true, color: "999999"
-              }, fmt)));
+              runs.push(await docxImage(c, context));
             } else if (tg === 'BR') {
-              runs.push(new docx.TextRun(Object.assign({ text: "\n" }, fmt)));
+              runs.push(new docx.TextRun({ break: 1 }));
+            } else if (['U', 'DEL', 'S', 'SUB', 'SUP'].includes(tg)) {
+              const format = { U: { underline: {} }, DEL: { strike: true }, S: { strike: true },
+                SUB: { subScript: true }, SUP: { superScript: true } };
+              await walk(c, { ...fmt, ...format[tg] });
             } else if (tg === 'UL' || tg === 'OL') {
               // 嵌套列表不在内联中处理
             } else {
-              walk(c, fmt);
+              await walk(c, fmt);
             }
           }
         }
-      })(node, baseFmt);
+      }
+      await walk(node, context.font ? { font: context.font, ...baseFmt } : baseFmt);
       return runs;
     }
 
@@ -1896,7 +2351,26 @@
     }
 
     // 将块级别 DOM 节点转换为 docx Paragraph/Table 数组（异步）
-    async function blockToDocxParas(node, indentLevel, isBlockquote) {
+    function wordListLevel(node, level) {
+      const picked = editorListFormat.styles[node.dataset.listStyle];
+      const ordered = node.tagName === 'OL';
+      const format = picked?.word || (ordered ? ['decimal', 'lowerLetter', 'lowerRoman'][level % 3] : 'bullet');
+      const text = picked ? picked.symbol || picked.prefix + '%' + (level + 1) + picked.suffix :
+        ordered ? '%' + (level + 1) + (level % 3 === 1 ? ')' : '.') : ['•', '○', '■'][level % 3];
+      return { format, text, start: ordered ? node.start : 1 };
+    }
+
+    function wordListDefinition(node, level, context, parent) {
+      const options = wordListLevel(node, level);
+      const inherited = parent?.used.get(level);
+      const definition = parent && (!inherited || Object.keys(options).every(key => inherited[key] === options[key]))
+        ? parent : { reference: 'list-' + context.numbering.length, root: node, used: new Map() };
+      if (definition !== parent) context.numbering.push(definition);
+      definition.used.set(level, options);
+      return definition;
+    }
+
+    async function blockToDocxParas(node, indentLevel, isBlockquote, context, parentList) {
       indentLevel = indentLevel || 0;
       if (!node || node.nodeType !== Node.ELEMENT_NODE) return [];
       var tag = node.tagName, paras = [], i, j, child, runs;
@@ -1904,58 +2378,33 @@
       // 标题
       var headingMap = { H1: docx.HeadingLevel.HEADING_1, H2: docx.HeadingLevel.HEADING_2, H3: docx.HeadingLevel.HEADING_3, H4: docx.HeadingLevel.HEADING_4, H5: docx.HeadingLevel.HEADING_5, H6: docx.HeadingLevel.HEADING_6 };
       if (headingMap[tag]) {
-        return [makeDocxParagraph({ heading: headingMap[tag], children: parseInline(node) }, isBlockquote)];
+        return [makeDocxParagraph({ heading: headingMap[tag], children: await parseInline(node, {}, context) }, isBlockquote)];
       }
 
       // 段落
       if (tag === 'P') {
-        runs = parseInline(node);
+        runs = await parseInline(node, {}, context);
         if (runs.length > 0) return [makeDocxParagraph({ children: runs, spacing: { after: 120 } }, isBlockquote)];
         return [];
       }
 
-      // 无序列表
-      if (tag === 'UL') {
-        var lis = node.querySelectorAll(':scope > li');
-        for (i = 0; i < lis.length; i++) {
-          var li = lis[i];
-          runs = parseInline(li);
+      if (tag === 'UL' || tag === 'OL') {
+        const level = Math.min(indentLevel, 8);
+        const definition = wordListDefinition(node, level, context, indentLevel < 9 ? parentList : undefined);
+        for (const li of node.children) {
+          if (li.tagName !== 'LI') continue;
+          runs = await parseInline(li, {}, context);
+          const task = li.querySelector(':scope > input[type="checkbox"], :scope > p > input[type="checkbox"]');
+          if (task) runs.unshift(new docx.TextRun(task.checked ? '☑ ' : '☐ '));
           paras.push(makeDocxParagraph({
-            numbering: { reference: "bullet-list", level: indentLevel },
-            children: runs,
-            spacing: { after: 60 },
-            indent: { left: 360 * (indentLevel + 1) }
+            numbering: { reference: definition.reference, level }, children: runs, spacing: { after: 60 },
+            indent: { left: 720 * (level + 1), hanging: 360 }
           }, isBlockquote));
-          // 处理嵌套列表
-          for (j = 0; j < li.children.length; j++) {
-            child = li.children[j];
-            if (child.tagName === 'UL' || child.tagName === 'OL') {
-              var nested = await blockToDocxParas(child, indentLevel + 1);
-              paras = paras.concat(nested);
-            }
-          }
-        }
-        return paras;
-      }
-
-      // 有序列表 - 使用 Word 原生自动编号
-      if (tag === 'OL') {
-        var lis = node.querySelectorAll(':scope > li');
-        for (i = 0; i < lis.length; i++) {
-          var li = lis[i];
-          runs = parseInline(li);
-          paras.push(makeDocxParagraph({
-            numbering: { reference: "ordered-list", level: indentLevel },
-            children: runs,
-            spacing: { after: 60 },
-            indent: { left: 360 * (indentLevel + 1) }
-          }, isBlockquote));
-          // 处理嵌套列表
-          for (j = 0; j < li.children.length; j++) {
-            child = li.children[j];
-            if (child.tagName === 'UL' || child.tagName === 'OL') {
-              var nested = await blockToDocxParas(child, indentLevel + 1);
-              paras = paras.concat(nested);
+          let nextList = definition;
+          for (const child of li.children) {
+            if (child.matches('ol, ul')) {
+              paras.push(...await blockToDocxParas(child, indentLevel + 1, isBlockquote, context, nextList));
+              nextList = undefined;
             }
           }
         }
@@ -1967,7 +2416,9 @@
         var codeEl = node.querySelector('code');
         var codeText = codeEl ? codeEl.textContent : node.textContent;
         return [makeDocxParagraph({
-          children: [new docx.TextRun({ text: codeText, font: "Consolas", size: 20 })],
+          children: codeText.replace(/\r?\n$/, '').split(/\r?\n/).map((line, index) => new docx.TextRun({
+            text: line, break: index > 0 ? 1 : 0, font: "Consolas", size: 20
+          })),
           shading: { type: docx.ShadingType.SOLID, color: "F5F5F5", fill: "F5F5F5" },
           spacing: { before: 80, after: 80 }
         }, isBlockquote)];
@@ -1978,7 +2429,7 @@
         for (i = 0; i < node.childNodes.length; i++) {
           child = node.childNodes[i];
           if (child.nodeType === Node.ELEMENT_NODE) {
-            var items = await blockToDocxParas(child, indentLevel + 1, true);
+            var items = await blockToDocxParas(child, indentLevel, true, context);
             paras = paras.concat(items);
           }
         }
@@ -1997,7 +2448,7 @@
             var td = tds[j];
             var isHeader = td.tagName === 'TH';
             var cellFmt = isHeader ? { bold: true } : {};
-            var cellPara = new docx.Paragraph({ children: parseInline(td, cellFmt) });
+            var cellPara = new docx.Paragraph({ children: await parseInline(td, cellFmt, context) });
             var cellOpts = { children: [cellPara] };
             if (isHeader) {
               cellOpts.shading = { type: docx.ShadingType.SOLID, color: "F5F5F5", fill: "F5F5F5" };
@@ -2021,48 +2472,18 @@
         }, isBlockquote)];
       }
 
-      // 图片
       if (tag === 'IMG') {
-        var src = node.getAttribute('src');
-        if (src) {
-          try {
-            var imgData;
-            if (src.startsWith('data:')) {
-              var parts = src.split(',');
-              if (parts.length > 1) {
-                var binary = atob(parts[1]);
-                imgData = new Uint8Array(binary.length);
-                for (var k = 0; k < binary.length; k++) imgData[k] = binary.charCodeAt(k);
-              }
-            } else {
-              try {
-                var resp = await fetch(src);
-                if (resp.ok) {
-                  var buf = await resp.arrayBuffer();
-                  imgData = new Uint8Array(buf);
-                }
-              } catch (e) {}
-            }
-            if (imgData) {
-              return [makeDocxParagraph({
-                children: [new docx.ImageRun({ data: imgData, transformation: { width: 400, height: 300 } })]
-              }, isBlockquote)];
-            }
-          } catch (e) {}
-        }
-        return [makeDocxParagraph({
-          children: [new docx.TextRun({ text: '[图片: ' + (node.getAttribute('alt') || src || '未知') + ']', italics: true, color: "999999" })]
-        }, isBlockquote)];
+        return [makeDocxParagraph({ children: [await docxImage(node, context)] }, isBlockquote)];
       }
 
       // 默认：按段落处理
-      runs = parseInline(node);
+      runs = await parseInline(node, {}, context);
       if (runs.length > 0) return [makeDocxParagraph({ children: runs, spacing: { after: 120 } }, isBlockquote)];
       return [];
     }
 
     // 遍历 body 子节点转换为 docx 元素
-    async function bodyToDocxChildren(body) {
+    async function bodyToDocxChildren(body, context) {
       var result = [];
       for (var i = 0; i < body.childNodes.length; i++) {
         var node = body.childNodes[i];
@@ -2072,133 +2493,46 @@
           continue;
         }
         if (node.nodeType !== Node.ELEMENT_NODE) continue;
-        var items = await blockToDocxParas(node, 0);
+        var items = await blockToDocxParas(node, 0, false, context);
         if (items && items.length > 0) result = result.concat(items);
       }
       return result;
     }
 
     // 导出 Word（真正的 OOXML DOCX 文件）
-    // Word 原生自动编号配置（多级列表）
-    const orderedConfig = {
-      reference: "ordered-list",
-      levels: [
-        {
-          level: 0,
-          format: docx.LevelFormat.DECIMAL,
-          text: "%1.",
-          alignment: docx.AlignmentType.LEFT,
-          style: {
-            paragraph: {
-              indent: { left: docx.convertInchesToTwip(0.5), hanging: docx.convertInchesToTwip(0.25) },
-            },
-          },
-        },
-        {
-          level: 1,
-          format: docx.LevelFormat.LOWER_LETTER,
-          text: "%2)",
-          alignment: docx.AlignmentType.LEFT,
-          style: {
-            paragraph: {
-              indent: { left: docx.convertInchesToTwip(1), hanging: docx.convertInchesToTwip(0.25) },
-            },
-          },
-        },
-        {
-          level: 2,
-          format: docx.LevelFormat.LOWER_ROMAN,
-          text: "%3.",
-          alignment: docx.AlignmentType.LEFT,
-          style: {
-            paragraph: {
-              indent: { left: docx.convertInchesToTwip(1.5), hanging: docx.convertInchesToTwip(0.25) },
-            },
-          },
-        },
-      ],
-    };
-
-    const bulletConfig = {
-      reference: "bullet-list",
-      levels: [
-        {
-          level: 0,
-          format: docx.LevelFormat.BULLET,
-          text: "•",
-          alignment: docx.AlignmentType.LEFT,
-          style: {
-            paragraph: {
-              indent: { left: docx.convertInchesToTwip(0.5), hanging: docx.convertInchesToTwip(0.25) },
-            },
-          },
-        },
-        {
-          level: 1,
-          format: docx.LevelFormat.BULLET,
-          text: "○",
-          alignment: docx.AlignmentType.LEFT,
-          style: {
-            paragraph: {
-              indent: { left: docx.convertInchesToTwip(1), hanging: docx.convertInchesToTwip(0.25) },
-            },
-          },
-        },
-        {
-          level: 2,
-          format: docx.LevelFormat.BULLET,
-          text: "■",
-          alignment: docx.AlignmentType.LEFT,
-          style: {
-            paragraph: {
-              indent: { left: docx.convertInchesToTwip(1.5), hanging: docx.convertInchesToTwip(0.25) },
-            },
-          },
-        },
-        {
-          level: 3,
-          format: docx.LevelFormat.BULLET,
-          text: "•",
-          alignment: docx.AlignmentType.LEFT,
-          style: {
-            paragraph: {
-              indent: { left: docx.convertInchesToTwip(2), hanging: docx.convertInchesToTwip(0.25) },
-            },
-          },
-        },
-      ],
-    };
-
     async function exportWord() {
-      var name = filenameInput.value.trim();
-      if (!name) name = '未命名文档.md';
-      name = name.replace(/\.md$/i, '').replace(/\.markdown$/i, '') + '.docx';
+      const entry = exportSnapshot();
+      const layout = exportLayout();
+      const name = exportFilenameStem(entry.filename) + '.docx';
 
-      if (typeof docx === 'undefined') {
-        showToast('DOCX 库加载失败，请检查网络连接');
-        return;
-      }
+      try { await loadLibrary('docx'); }
+      catch (_) { showToast(t('wordUnavailable')); return; }
 
-      // Markdown → HTML
-      var rawMd = editor.value;
-      var md = convertSoftBreaksForExport(rawMd);
-      var bodyHtml;
-      if (typeof marked !== 'undefined') {
-        bodyHtml = marked.parse(md);
-      } else {
-        bodyHtml = '<pre>' + escapeHtml(md) + '</pre>';
-      }
-
-      // HTML → DOCX 元素
-      var parser = new DOMParser();
-      var htmlDoc = parser.parseFromString(bodyHtml, 'text/html');
-      var children = await bodyToDocxChildren(htmlDoc.body);
+      const prepared = await checkExport(entry, 'all');
+      if (!prepared) return;
+      const font = editorListFormat.font(entry.text);
+      const context = { numbering: [], missingImages: 0, font };
+      const children = await bodyToDocxChildren(prepared.body, context);
+      const config = context.numbering.map(({ reference, root, used }) => ({
+        reference, levels: Array.from({ length: 9 }, (_, level) => ({
+          level, ...(used.get(level) || { ...wordListLevel(root, level), start: 1 }),
+          alignment: docx.AlignmentType.LEFT,
+          style: { paragraph: { indent: { left: 720 * (level + 1), hanging: 360 } } }
+        }))
+      }));
 
       // 打包为 DOCX 文档
       var doc = new docx.Document({
-        numbering: { config: [bulletConfig, orderedConfig] },
-        styles: { default: { document: { run: { font: "Arial", size: 24 } } } },
-        sections: [{ children: children }]
+        numbering: { config },
+        styles: { default: { document: { run: { font: font || 'Arial', size: 24 } } } },
+        sections: [{ children, properties: { page: {
+          ...(layout.paper === 'A4' ? { size: { width: 11906, height: 16838 } } :
+            layout.paper === 'Letter' ? { size: { width: 12240, height: 15840 } } : {}),
+          ...(layout.margin !== 25 || layout.paper !== 'default' ? {
+            margin: Object.fromEntries(['top', 'right', 'bottom', 'left']
+              .map(side => [side, Math.round(layout.margin * 1440 / 25.4)]))
+          } : {})
+        } } }]
       });
 
       // 生成并下载
@@ -2211,33 +2545,34 @@
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      showToast(t('toastWordExported'));
+      showToast(context.missingImages ? t('exportMissingImages', context.missingImages) : t('toastWordExported'));
     }
 
 
     // 导出 HTML：将 Markdown 渲染为独立 HTML 页面并下载
-    function exportHTML() {
-      let name = filenameInput.value.trim();
-      if (!name) name = '未命名文档.md';
-      name = name.replace(/\.md$/i, '').replace(/\.markdown$/i, '') + '.html';
+    async function exportHTML() {
+      const entry = exportSnapshot();
+      const name = exportFilenameStem(entry.filename) + '.html';
 
-      const md = editor.value;
-      let bodyHtml;
-      if (typeof marked !== 'undefined') {
-        bodyHtml = marked.parse(md);
-      } else {
-        bodyHtml = '<pre style="white-space:pre-wrap">' + escapeHtml(md) + '</pre>';
-      }
+      const language = entry.language;
+      const prepared = await checkExport(entry, 'relative');
+      if (!prepared) return;
+      const bodyHtml = prepared.body.innerHTML;
+      const fontFamily = prepared.body.style.fontFamily;
 
       const fullHtml = `<!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="${language}">
 <head>
   <meta charset="utf-8">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline' https://cdn.jsdelivr.net; font-src https://cdn.jsdelivr.net; img-src data: https: http:; base-uri 'none'; form-action 'none'">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${escapeHtml(name.replace(/\.html$/i, ''))}</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.19.1/dist/katex.min.css" integrity="sha384-WwGtaC6ywCHxA5cstpj/3+xIZvTez8dq2IcBQaXRkenHZ7FVVq1ZROtURwfbtTlG" crossorigin="anonymous">
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 16px; line-height: 1.7; max-width: 820px; margin: 40px auto; padding: 0 20px; color: #212529; background: #fff; }
+    ${fontFamily ? 'body { font-family: ' + fontFamily + '; }' : ''}
+    ${editorListFormat.css()}
     h1, h2, h3, h4, h5, h6 { margin: 24px 0 12px; font-weight: 600; line-height: 1.25; color: #212529; }
     h1 { font-size: 2em; border-bottom: 1px solid #dee2e6; padding-bottom: 8px; }
     h2 { font-size: 1.5em; border-bottom: 1px solid #dee2e6; padding-bottom: 6px; }
@@ -2264,21 +2599,6 @@
 </head>
 <body>
 ${bodyHtml}
-<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js">${'</scr' + 'ipt>'}
-<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js">${'</scr' + 'ipt>'}
-<script>
-  document.addEventListener('DOMContentLoaded', function() {
-    if (typeof renderMathInElement !== 'undefined') {
-      renderMathInElement(document.body, {
-        delimiters: [
-          { left: '$$', right: '$$', display: true },
-          { left: '$', right: '$', display: false }
-        ],
-        throwOnError: false
-      });
-    }
-  });
-${'</scr' + 'ipt>'}
 </body>
 </html>`;
 
@@ -2294,16 +2614,136 @@ ${'</scr' + 'ipt>'}
       showToast(t('toastHtmlExported'));
     }
 
-    function exportPDF() {
-      const wasSource = previewMode === 'source';
-      if (wasSource) {
-        setPreviewMode('preview');
+    function openExportSettings() { showDialog(document.getElementById('export-settings')); }
+    function closeExportSettings() { dismissDialog(document.getElementById('export-settings')); }
+
+    function exportLayout() {
+      const choice = document.getElementById('export-paper').value;
+      const paper = ['A4', 'Letter'].includes(choice) ? choice : 'default';
+      const margin = Math.min(45, Math.max(5, Number(document.getElementById('export-margin').value) || 25));
+      return { paper, margin };
+    }
+
+    let exportCheck;
+    function cancelExportCheck() {
+      if (!exportCheck) return;
+      exportCheck.controller.abort();
+      exportCheck.resolve(false);
+      dismissDialog(document.getElementById('export-check'));
+      exportCheck = null;
+    }
+
+    async function checkExport(entry, imageMode = 'none') {
+      cancelExportCheck();
+      const panel = document.getElementById('export-check');
+      const status = document.getElementById('export-check-status');
+      const button = document.getElementById('export-continue');
+      const controller = new AbortController();
+      const job = { controller, resolve: () => {} };
+      exportCheck = job;
+      button.disabled = true;
+      status.textContent = t('exportChecking');
+      showDialog(panel);
+      try {
+        const prepared = await prepareExportContent(entry, controller.signal);
+        const results = await Promise.all([...prepared.body.querySelectorAll('img[src]')].map(async img => {
+          const source = img.getAttribute('src');
+          const label = img.alt || source.slice(0, 160);
+          const relative = imageMode === 'relative' && !/^[a-z][a-z\d+.-]*:/i.test(source);
+          let embedImage = imageMode === 'all';
+          try {
+            let image = img;
+            if (relative) {
+              const address = new URL(source, document.baseURI);
+              embedImage = address.origin === location.origin;
+              if (!embedImage) img.src = address.href;
+            }
+            if (source.startsWith('attachments/')) throw new Error('Missing attachment');
+            if (embedImage || source.startsWith('data:')) {
+              const response = await fetch(img.src, {
+                signal: AbortSignal.any([controller.signal, AbortSignal.timeout(6000)]),
+                ...(relative ? { mode: 'same-origin' } : {})
+              });
+              if (!response.ok) throw new Error('Image failed');
+              const blob = await response.blob();
+              // Decode relative assets without replacing a pending request on the rendered image.
+              if (relative) image = new Image();
+              image.src = await editorAttachments.asDataUrl(blob);
+            }
+            await Promise.race([image.decode(), abortSignalPromise(controller.signal, 6000)]);
+            if (image !== img) img.src = image.src;
+            return null;
+          } catch (_) {
+            if (embedImage) img.removeAttribute('src');
+            return label;
+          }
+        }));
+        if (controller.signal.aborted) return null;
+        const missing = results.filter(label => label !== null);
+        if (missing.length) {
+          prepared.issues.push(t('exportMissingImages', missing.length) + ' ' + missing.slice(0, 10).join(', '));
+        }
+        if (prepared.issues.length) {
+          status.textContent = [...new Set(prepared.issues)].join(' ');
+          button.disabled = false;
+          const proceed = await new Promise(resolve => {
+            job.resolve = resolve;
+            button.onclick = () => resolve(true);
+          });
+          if (!proceed) return null;
+        }
+        return prepared;
+      } catch (_) {
+        if (!controller.signal.aborted) showToast(t('attachmentError'));
+        return null;
+      } finally {
+        if (exportCheck === job) {
+          exportCheck = null;
+          dismissDialog(panel);
+        }
+        controller.abort();
+      }
+    }
+
+    function abortSignalPromise(signal, timeout) {
+      const combined = AbortSignal.any([signal, AbortSignal.timeout(timeout)]);
+      return new Promise((_, reject) => {
+        if (combined.aborted) reject(combined.reason);
+        else combined.addEventListener('abort', () => reject(combined.reason), { once: true });
+      });
+    }
+
+    let printStyle;
+    let originalPrintTitle;
+    function clearPrintSnapshot() {
+      document.body.classList.remove('printing-snapshot');
+      document.getElementById('pdf-document').replaceChildren();
+      printStyle?.remove();
+      if (originalPrintTitle !== undefined) {
+        document.title = originalPrintTitle;
+        originalPrintTitle = undefined;
+      }
+    }
+    window.addEventListener('afterprint', clearPrintSnapshot);
+
+    async function exportPDF() {
+      const entry = exportSnapshot();
+      const layout = exportLayout();
+      const prepared = await checkExport(entry);
+      if (!prepared) return;
+      clearPrintSnapshot();
+      document.getElementById('pdf-document').append(prepared.body);
+      document.body.classList.add('printing-snapshot');
+      if (layout.paper !== 'default' || layout.margin !== 25) {
+        printStyle = document.createElement('style');
+        printStyle.textContent = '@page { ' + (layout.paper === 'default' ? '' : 'size: ' + layout.paper + '; ') +
+          'margin: ' + layout.margin + 'mm; }';
+        document.head.append(printStyle);
       }
       showToast(t('toastChoosePdf'));
-      setTimeout(() => {
-        window.print();
-        if (wasSource) setPreviewMode('source');
-      }, 500);
+      originalPrintTitle = document.title;
+      document.title = exportFilenameStem(entry.filename) + '.pdf';
+      window.print();
     }
 
     function toggleExportMenu() {
@@ -2317,6 +2757,15 @@ ${'</scr' + 'ipt>'}
     // 导出图片
     let currentImageRatio = '9:16';
     let currentImageDataUrl = '';
+    let imagePages = [];
+    let pngConfirmation;
+    const pngStatus = document.getElementById('png-resource-status');
+    const pngContinue = document.getElementById('png-continue');
+    const pngDownload = document.getElementById('png-download');
+    const pngCrop = document.getElementById('image-crop-fit');
+    const pngSplit = document.getElementById('png-split');
+    let pngEntry;
+    let imageGeneration = 0;
 
     const RATIO_PRESETS = {
       '9:16':  { width: 1080, height: 1920 },
@@ -2333,22 +2782,26 @@ ${'</scr' + 'ipt>'}
       '</svg>'
     );
 
+    for (const [option, other] of [[pngCrop, pngSplit], [pngSplit, pngCrop]]) {
+      option.addEventListener('change', () => {
+        if (option.checked) other.checked = false;
+        renderExportImagePreview();
+      });
+    }
+
     function openExportImageModal() {
-      if (previewMode !== 'preview') {
-        setPreviewMode('preview');
-      }
+      pngEntry = exportSnapshot();
+      pngSplit.checked = false;
       const el = document.getElementById('export-image-modal');
-      el.style.display = 'flex';
-      void el.offsetWidth;
-      el.classList.add('show');
-      document.getElementById('image-crop-fit').checked = false;
+      showDialog(el);
+      pngCrop.checked = false;
       selectImageRatio(currentImageRatio);
     }
 
     function closeExportImageModal() {
+      resetPng();
       const el = document.getElementById('export-image-modal');
-      el.classList.remove('show');
-      setTimeout(() => { if (!el.classList.contains('show')) el.style.display = 'none'; }, 200);
+      dismissDialog(el);
     }
 
     function selectImageRatio(ratio) {
@@ -2359,55 +2812,80 @@ ${'</scr' + 'ipt>'}
       renderExportImagePreview();
     }
 
-    function prepareExportImages(root) {
-      const imgs = root.querySelectorAll('img');
-      return Promise.all(Array.from(imgs).map(img => new Promise(resolve => {
-        if (!img.src || img.src.startsWith('data:')) {
-          resolve();
-          return;
-        }
-        const test = new Image();
-        test.crossOrigin = 'anonymous';
-        test.onload = () => {
-          img.crossOrigin = 'anonymous';
-          img.src = test.src;
-          resolve();
-        };
-        test.onerror = () => {
+    function resetPng() {
+      currentImageDataUrl = '';
+      imagePages = [];
+      pngConfirmation?.(false);
+      pngConfirmation = undefined;
+      pngContinue.hidden = true;
+      pngStatus.textContent = '';
+      const image = document.getElementById('export-image-preview');
+      image.removeAttribute('src');
+      image.style.display = 'none';
+      pngDownload.disabled = true;
+      pngDownload.dataset.i18n = 'downloadPng';
+      pngDownload.textContent = t('downloadPng');
+      return ++imageGeneration;
+    }
+
+    async function prepareExportImages(root) {
+      const results = await Promise.all([...root.querySelectorAll('img')].map(async img => {
+        let objectUrl;
+        try {
+          const response = await fetch(img.src, { signal: AbortSignal.timeout(6000) });
+          if (!response.ok) throw new Error('Image request failed');
+          objectUrl = URL.createObjectURL(await response.blob());
+          img.src = objectUrl;
+          await img.decode();
+          return { objectUrl, failed: false };
+        } catch (_) {
+          if (objectUrl) URL.revokeObjectURL(objectUrl);
           img.src = IMAGE_PLACEHOLDER;
-          resolve();
-        };
-        const sep = img.src.includes('?') ? '&' : '?';
-        test.src = img.src + sep + '_cors=' + Date.now();
-      })));
+          await img.decode().catch(() => {});
+          return { failed: true };
+        }
+      }));
+      return {
+        missing: results.filter(result => result.failed).length,
+        release: () => results.forEach(result => {
+          if (result.objectUrl) URL.revokeObjectURL(result.objectUrl);
+        })
+      };
     }
 
     async function renderExportImagePreview() {
-      if (typeof domtoimage === 'undefined') {
-        showToast(t('toastImageLibMissing'));
-        return;
-      }
-
+      const generation = resetPng();
+      pngStatus.textContent = t('exportChecking');
       const preset = RATIO_PRESETS[currentImageRatio];
       const stage = document.getElementById('export-image-stage');
       const container = document.getElementById('export-image-content');
+      const cropFit = pngCrop.checked;
+      const split = pngSplit.checked;
+      const entry = pngEntry || exportSnapshot();
 
-      container.innerHTML = '';
+      try { await loadLibrary('png'); }
+      catch (_) {
+        if (generation === imageGeneration) pngStatus.textContent = t('toastImageLibMissing');
+        return;
+      }
+      const prepared = await prepareExportContent(entry).catch(() => null);
+      const snapshot = prepared?.body;
+      if (generation !== imageGeneration) return;
+      if (!snapshot) {
+        pngStatus.textContent = t('attachmentError');
+        return;
+      }
       const clone = document.createElement('div');
       clone.className = 'preview-content';
-      clone.innerHTML = preview.innerHTML;
-      clone.style.width = preset.width + 'px';
-      clone.style.padding = Math.round(preset.width * 0.04) + 'px ' + Math.round(preset.width * 0.045) + 'px';
-      clone.style.fontSize = Math.round(preset.width / 36) + 'px';
-      clone.style.lineHeight = '1.7';
-      clone.style.boxSizing = 'border-box';
-      clone.style.background = 'var(--panel-bg)';
-      clone.style.color = 'var(--text)';
-      clone.style.overflow = 'visible';
-      clone.style.maxWidth = 'none';
-      clone.style.margin = '0';
+      clone.append(snapshot.cloneNode(true));
+      editorListFormat.paintImageMarkers(clone);
+      Object.assign(clone.style, {
+        width: preset.width + 'px', padding: Math.round(preset.width * 0.04) + 'px ' +
+          Math.round(preset.width * 0.045) + 'px', fontSize: Math.round(preset.width / 36) + 'px',
+        lineHeight: '1.7', boxSizing: 'border-box', background: 'var(--panel-bg)', color: 'var(--text)',
+        overflow: 'visible', maxWidth: 'none', margin: '0'
+      });
       container.appendChild(clone);
-
       const markdownBody = clone.querySelector('.markdown-body');
       if (markdownBody) {
         markdownBody.style.maxWidth = 'none';
@@ -2418,9 +2896,31 @@ ${'</scr' + 'ipt>'}
       stage.style.width = preset.width + 'px';
       stage.style.height = 'auto';
 
-      await prepareExportImages(clone);
+      const images = await prepareExportImages(clone);
+      if (generation !== imageGeneration) {
+        images.release();
+        clone.remove();
+        return;
+      }
 
-      const cropFit = document.getElementById('image-crop-fit').checked;
+      const messages = [...prepared.issues];
+      if (images.missing) messages.push(t('exportMissingImages', images.missing));
+      if (messages.length) {
+        pngStatus.textContent = [...new Set(messages)].join(' ');
+        pngContinue.hidden = false;
+        const proceed = await new Promise(resolve => {
+          pngConfirmation = resolve;
+          pngContinue.onclick = () => resolve(true);
+        });
+        if (!proceed || generation !== imageGeneration) {
+          images.release();
+          clone.remove();
+          return;
+        }
+        pngConfirmation = undefined;
+        pngContinue.hidden = true;
+      }
+
       const targetHeight = preset.height;
       const naturalHeight = clone.scrollHeight;
 
@@ -2429,7 +2929,7 @@ ${'</scr' + 'ipt>'}
         clone.style.minHeight = targetHeight + 'px';
         clone.style.height = targetHeight + 'px';
         captureHeight = targetHeight;
-      } else if (cropFit) {
+      } else if (cropFit && !split) {
         clone.style.height = targetHeight + 'px';
         clone.style.overflow = 'hidden';
         captureHeight = targetHeight;
@@ -2442,25 +2942,44 @@ ${'</scr' + 'ipt>'}
       stage.style.height = captureHeight + 'px';
 
       try {
-        const dataUrl = await domtoimage.toPng(clone, {
-          width: preset.width,
-          height: captureHeight,
-          bgcolor: getComputedStyle(clone).backgroundColor || '#ffffff',
-          cacheBust: true,
-          imagePlaceholder: IMAGE_PLACEHOLDER
-        });
-        currentImageDataUrl = dataUrl;
+        const pageHeight = split ? targetHeight : captureHeight;
+        const pages = [];
+        if (Math.ceil(captureHeight / pageHeight) > 100 || pageHeight * preset.width > 64000000) {
+          throw new Error(t('exportSplit'));
+        }
+        const viewport = document.createElement('div');
+        Object.assign(viewport.style, { width: preset.width + 'px', overflow: 'hidden',
+          background: getComputedStyle(clone).backgroundColor });
+        clone.before(viewport);
+        viewport.append(clone);
+        try {
+          for (let top = 0; top < captureHeight; top += pageHeight) {
+            if (generation !== imageGeneration) return;
+            const height = Math.min(pageHeight, captureHeight - top);
+            viewport.style.height = height + 'px';
+            clone.style.transform = 'translateY(-' + top + 'px)';
+            pages.push(await domtoimage.toPng(viewport, {
+              width: preset.width, height, httpTimeout: 4000,
+              disableEmbedFonts: !clone.querySelector('.katex'), imagePlaceholder: IMAGE_PLACEHOLDER
+            }));
+          }
+        } finally { viewport.remove(); }
+        if (generation !== imageGeneration) return;
+        imagePages = pages;
+        currentImageDataUrl = pages[0];
         const previewImg = document.getElementById('export-image-preview');
-        previewImg.src = dataUrl;
+        previewImg.src = currentImageDataUrl;
         previewImg.style.display = 'block';
+        pngDownload.dataset.i18n = pages.length > 1 ? 'downloadZip' : 'downloadPng';
+        pngDownload.textContent = t(pngDownload.dataset.i18n);
+        pngDownload.disabled = false;
+        if (!messages.length) pngStatus.textContent = '';
         showToast(t('toastPreviewGenerated'));
       } catch (err) {
-        console.error(err);
-        showToast(t('toastImageGenFailed', err.message));
+        if (generation === imageGeneration) pngStatus.textContent = t('toastImageGenFailed', err.message);
       } finally {
-        clone.style.height = '';
-        clone.style.minHeight = '';
-        clone.style.overflow = '';
+        images.release();
+        clone.remove();
       }
     }
 
@@ -2469,39 +2988,48 @@ ${'</scr' + 'ipt>'}
         showToast(t('toastGeneratePreviewFirst'));
         return;
       }
-      let name = filenameInput.value.trim();
-      if (!name) name = '未命名文档.md';
-      name = name.replace(/\.(md|markdown|txt|html|docx?)$/i, '') + '.png';
-
-      const a = document.createElement('a');
-      a.href = currentImageDataUrl;
-      a.download = name;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      const name = exportFilenameStem(pngEntry.filename);
+      if (imagePages.length > 1) {
+        const files = Object.fromEntries(imagePages.map((url, index) => {
+          const bytes = Uint8Array.from(atob(url.split(',')[1]), character => character.charCodeAt(0));
+          return [name.replace(/[\\/:*?"<>|]/g, '_') + '-' + String(index + 1).padStart(3, '0') + '.png', bytes];
+        }));
+        editorAttachments.download(fflate.zipSync(files, { level: 0 }), name + '.zip', 'application/zip');
+      } else {
+        const link = document.createElement('a');
+        link.href = currentImageDataUrl;
+        link.download = name + '.png';
+        link.click();
+      }
       showToast(t('toastImageDownloaded'));
     }
 
     // 加载文件内容到编辑器（文件输入与拖放共用）
-    function loadFile(file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        editor.value = e.target.result;
-        let name = file.name;
-        if (!name.toLowerCase().endsWith('.md') && !name.toLowerCase().endsWith('.markdown')) {
-          name += '.md';
-        }
-        filenameInput.value = name;
-        updatePreview();
-        updateCount();
-        saveToLocal();
+    async function loadFile(file) {
+      if (!canEditDraft()) return;
+      const original = draft;
+      const request = ++importSequence;
+      if ((original.text || dirtyDraft()) && !confirm(t('draftReplace'))) return;
+      try {
+        const bundle = /[.]zip$/i.test(file.name);
+        const text = bundle ? (await editorAttachments.readBundle(file)).text : await file.text();
+        const extension = file.name.lastIndexOf('.');
+        const name = extension > 0 ? file.name.slice(0, extension) : file.name;
+        if (!canEditDraft() || request !== importSequence || original.id !== draft.id) return;
+        if ((draft.text !== original.text || draft.filename !== original.filename) &&
+            !confirm(t('draftReplace'))) return;
+        void saveCheckpoint(draft, 'import');
+        pushHistory();
+        commitDraft(text, name + '.md');
+        await saveToLocal();
         showToast(t('toastFileImported'));
-      };
-      reader.readAsText(file);
+      } catch (_) {
+        if (request === importSequence) showToast(t('draftReadFailed'));
+      }
     }
 
     // 导入文件
-    function importFile(input) {
+    function handleFileInput(input) {
       const file = input.files[0];
       if (file) loadFile(file);
       input.value = '';
@@ -2512,66 +3040,228 @@ ${'</scr' + 'ipt>'}
       const current = document.body.getAttribute('data-theme');
       const next = current === 'dark' ? 'light' : 'dark';
       document.body.setAttribute('data-theme', next);
-      localStorage.setItem(THEME_KEY, next);
-      if (typeof mermaid !== 'undefined') {
-        mermaid.initialize({
-          startOnLoad: false,
-          theme: next === 'dark' ? 'dark' : 'default'
-        });
-      }
+      preferences.setItem(THEME_KEY, next);
       updatePreview();
     }
 
     // 清空文档
     function clearDoc() {
-      if (confirm(t('confirmClear'))) {
-        editor.value = '';
-        updatePreview();
-        updateCount();
-        saveToLocal();
+      if (canEditDraft() && confirm(t('confirmClear'))) {
+        void saveCheckpoint(draft, 'clear');
+        pushHistory();
+        commitDraft('', '');
+        void saveToLocal();
       }
     }
 
-    // 历史记录
+    const workspaceDialog = document.getElementById('workspace-modal');
+    const workspaceList = document.getElementById('workspace-list');
+    const workspaceSearch = document.getElementById('workspace-search');
+    const workspaceTags = document.getElementById('workspace-tags');
+    const workspaceStatus = document.getElementById('workspace-status');
+    const workspaceUndo = new Map();
+    let workspaceRecords = [];
+    let workspaceSession = 0;
+    let switchingDocuments = false;
+
+    function renderWorkspaceList() {
+      const query = workspaceSearch.value.trim().toLocaleLowerCase();
+      const records = query ? workspaceRecords.filter(entry =>
+        [entry.filename, ...(entry.tags || []), entry.text].some(value => value.toLocaleLowerCase().includes(query)))
+        : workspaceRecords;
+      workspaceList.replaceChildren(...records.map(entry => new Option(
+        entry.filename + (entry.tags?.length ? ' · ' + entry.tags.join(', ') : ''),
+        entry.id, false, entry.id === draft.id
+      )));
+      if (!workspaceList.value && records.length) workspaceList.selectedIndex = 0;
+    }
+
+    async function openWorkspace() {
+      const ticket = ++workspaceSession;
+      showDialog(workspaceDialog);
+      workspaceTags.value = (draft.tags || []).join(', ');
+      workspaceSearch.value = '';
+      workspaceList.replaceChildren();
+      workspaceStatus.textContent = t('draftPending');
+      try {
+        if (!draftStorage.canRecover()) throw new Error('Unavailable');
+        const records = await draftStorage.documents();
+        if (ticket !== workspaceSession) return;
+        workspaceRecords = [draft, ...records.filter(entry => entry.id !== draft.id)]
+          .sort((first, second) => (second.savedAt || 0) - (first.savedAt || 0));
+        workspaceStatus.textContent = '';
+        renderWorkspaceList();
+      } catch (_) {
+        if (ticket === workspaceSession) workspaceStatus.textContent = t('workspaceUnavailable');
+      }
+    }
+
+    function closeWorkspace() {
+      workspaceSession++;
+      dismissDialog(workspaceDialog);
+    }
+
+    workspaceSearch.addEventListener('input', renderWorkspaceList);
+    workspaceList.addEventListener('dblclick', selectWorkspaceDocument);
+
+    async function switchWorkspaceDocument(readTarget) {
+      if (!draftStorage.canRecover() || switchingDocuments) {
+        workspaceStatus.textContent = t('workspaceUnavailable');
+        return;
+      }
+      switchingDocuments = true;
+      updateEditAvailability();
+      try {
+        await saveToLocal();
+        if (dirtyDraft()) throw new Error('Draft is unsaved');
+        pushHistory();
+        workspaceUndo.set(draft.id, { historyStack, historyIndex });
+        const next = await readTarget();
+        if (!next) throw new Error('Draft is missing');
+        importSequence++;
+        draft = { ...next };
+        savedDraft = draft;
+        const undoState = workspaceUndo.get(draft.id);
+        historyStack = undoState?.historyStack || [];
+        historyIndex = undoState?.historyIndex ?? -1;
+        reflectDraft();
+        if (historyIndex < 0 || historyStack[historyIndex]?.text !== draft.text) recordHistory();
+        setSaveStatus('autosaveEnabled');
+        preferences.setItem('md_editor_active_document', draft.id);
+        closeWorkspace();
+        updateCount();
+        preview.replaceChildren();
+        renderedPreviewText = undefined;
+        preview.scrollTop = 0;
+        if (previewPaused) updatePreview(true);
+        else schedulePreview();
+      } catch (_) { workspaceStatus.textContent = t('workspaceError'); }
+      finally {
+        switchingDocuments = false;
+        updateEditAvailability();
+      }
+    }
+
+    async function newWorkspaceDocument() {
+      await switchWorkspaceDocument(() => draftStorage.save({
+        id: crypto.randomUUID(), filename: t('filenameDefault'), text: '', tags: []
+      }, 0));
+    }
+
+    function selectWorkspaceDocument() {
+      const id = workspaceList.value;
+      if (id && id !== draft.id) void switchWorkspaceDocument(() => draftStorage.read(id));
+      else if (id) closeWorkspace();
+    }
+
+    async function saveWorkspaceTags() {
+      if (!draftStorage.canRecover()) return;
+      const tags = [...new Set(workspaceTags.value.split(/[,，]/).map(tag => tag.trim().slice(0, 80)).filter(Boolean))].slice(0, 20);
+      draft = { ...draft, tags };
+      await saveToLocal();
+      if (dirtyDraft()) workspaceStatus.textContent = t('workspaceError');
+      else {
+        workspaceStatus.textContent = t('saved');
+        workspaceRecords = workspaceRecords.map(entry => entry.id === draft.id ? draft : entry);
+        renderWorkspaceList();
+      }
+    }
+
+    async function downloadWorkspace() {
+      try {
+        await saveToLocal();
+        if (dirtyDraft()) throw new Error('Draft is unsaved');
+        await editorWorkspace.download();
+      } catch (_) { workspaceStatus.textContent = t('workspaceError'); }
+    }
+
+    document.getElementById('workspace-restore-file').addEventListener('change', async event => {
+      const file = event.target.files[0];
+      event.target.value = '';
+      if (!file || !draftStorage.canRecover()) return;
+      try {
+        const restored = await editorWorkspace.restore(file);
+        if (workspaceDialog.classList.contains('show')) {
+          const records = await draftStorage.documents();
+          const saved = records.find(entry => entry.id === draft.id);
+          if (saved && draft.revision === 0 && !dirtyDraft()) {
+            await switchWorkspaceDocument(() => Promise.resolve(saved));
+            await openWorkspace();
+          }
+          workspaceRecords = [draft, ...records.filter(entry => entry.id !== draft.id)]
+            .sort((first, second) => (second.savedAt || 0) - (first.savedAt || 0));
+          renderWorkspaceList();
+          workspaceStatus.textContent = t('workspaceRestored', restored.length);
+        }
+      } catch (_) { workspaceStatus.textContent = t('workspaceError'); }
+    });
+
+    function exportSnapshot() {
+      return { ...draft, language: currentLang };
+    }
+
+    async function prepareExportContent(entry, signal) {
+      const resolved = await editorAttachments.resolve(entry.text);
+      signal?.throwIfAborted();
+      const body = markdownContent.fragment(resolved.text);
+      body.className = 'markdown-body';
+      const issues = resolved.missing.length ? [t('exportMissingImages', resolved.missing.length)] : [];
+      const enhancements = await enhanceContent(body, () => !signal?.aborted, false);
+      issues.push(...enhancements);
+      signal?.throwIfAborted();
+      return { body, issues };
+    }
+
+    function snapshot() {
+      const el = getActiveEditor();
+      return { text: draft.text, filename: draft.filename, selection: [el.selectionStart, el.selectionEnd] };
+    }
+
     function pushHistory() {
+      if (!ready) return;
       clearTimeout(historyTimer);
       recordHistory();
+      historyStack[historyIndex] = snapshot();
     }
 
     function recordHistory() {
-      const text = editor.value;
-      if (text === lastHistoryText) return;
+      const current = snapshot();
+      const previous = historyStack[historyIndex];
+      if (current.text === previous?.text && current.filename === previous?.filename) return;
       historyStack = historyStack.slice(0, historyIndex + 1);
-      historyStack.push(text);
-      if (historyStack.length > MAX_HISTORY) historyStack.shift();
+      historyStack.push(current);
+      let bytes = 0;
+      let keep = historyStack.length;
+      while (keep > 0) {
+        const entry = historyStack[keep - 1];
+        bytes += (entry.text.length + entry.filename.length) * 2 + 128;
+        if (historyStack.length - keep >= 2 && (bytes > HISTORY_BYTES || historyStack.length - keep >= MAX_HISTORY)) break;
+        keep--;
+      }
+      if (keep) historyStack = historyStack.slice(keep);
       historyIndex = historyStack.length - 1;
-      lastHistoryText = text;
+    }
+
+    function restoreHistory(entry, message) {
+      const el = getActiveEditor();
+      commitDraft(entry.text, entry.filename, 'skip');
+      el.focus();
+      el.setSelectionRange(...entry.selection);
+      showToast(t(message));
     }
 
     function undo() {
-      if (historyIndex <= 0) return;
-      historyIndex--;
-      editor.value = historyStack[historyIndex];
-      lastHistoryText = editor.value;
-      if (previewMode === 'source') previewSource.value = editor.value;
-      updatePreview();
-      updateCount();
-      autoSave();
-      getActiveEditor().focus();
-      showToast(t('toastUndone'));
+      if (!canEditDraft()) return;
+      pushHistory();
+      if (historyIndex > 0) restoreHistory(historyStack[--historyIndex], 'toastUndone');
     }
 
     function redo() {
-      if (historyIndex >= historyStack.length - 1) return;
-      historyIndex++;
-      editor.value = historyStack[historyIndex];
-      lastHistoryText = editor.value;
-      if (previewMode === 'source') previewSource.value = editor.value;
-      updatePreview();
-      updateCount();
-      autoSave();
-      getActiveEditor().focus();
-      showToast(t('toastRedone'));
+      if (!canEditDraft()) return;
+      pushHistory();
+      if (historyIndex < historyStack.length - 1) {
+        restoreHistory(historyStack[++historyIndex], 'toastRedone');
+      }
     }
 
     // 工具栏格式化
@@ -2610,12 +3300,14 @@ ${'</scr' + 'ipt>'}
       const end = el.selectionEnd;
       const text = el.value;
       const selected = text.slice(start, end);
-      const insert = selected.includes('\n') ? '```\n' + selected + '\n```' : '`' + selected + '`';
-      el.setRangeText(insert, start, end, 'select');
-      syncEditorFromActive();
-      updatePreview();
-      updateCount();
-      autoSave();
+      const fence = codeFence(selected, 3);
+      const prefix = start && text[start - 1] !== '\n' ? '\n' : '';
+      const suffix = end < text.length && text[end] !== '\n' ? '\n' : '';
+      const opening = prefix + fence + '\n';
+      const closing = (selected.endsWith('\n') ? '' : '\n') + fence + suffix;
+      el.setRangeText(opening + selected + closing, start, end, 'end');
+      el.setSelectionRange(start + opening.length, start + opening.length + selected.length);
+      commitEditor(el);
       el.focus();
     }
     function wrapSelection(before, after) {
@@ -2625,10 +3317,7 @@ ${'</scr' + 'ipt>'}
       const text = el.value;
       const selected = text.slice(start, end);
       el.setRangeText(before + selected + after, start, end, 'select');
-      syncEditorFromActive();
-      updatePreview();
-      updateCount();
-      autoSave();
+      commitEditor(el);
       el.focus();
     }
 
@@ -2640,39 +3329,159 @@ ${'</scr' + 'ipt>'}
       const selected = el.value.slice(start, end) || t('quote');
       const quoted = '> ' + selected.replace(/\n/g, '\n> ');
       el.setRangeText(quoted, start, end, 'select');
-      syncEditorFromActive();
-      updatePreview();
-      updateCount();
-      autoSave();
+      commitEditor(el);
       el.focus();
     }
 
-    function formatUnorderedList() {
-      prefixLines('- ');
-    }
-    function formatOrderedList() {
-      prefixLines('1. ');
-    }
-    function formatTaskList() {
-      prefixLines('- [ ] ');
+    function formatList(id) {
+      const el = getActiveEditor();
+      const text = el.value;
+      const start = el.selectionStart ? text.lastIndexOf('\n', el.selectionStart - 1) + 1 : 0;
+      const selectedEnd = el.selectionEnd - (el.selectionEnd > start && text[el.selectionEnd - 1] === '\n' ? 1 : 0);
+      const boundary = text.indexOf('\n', selectedEnd);
+      const end = boundary < 0 ? text.length : boundary;
+      const { rows } = editorListFormat.scan(text, true);
+      const first = text.slice(0, start).split('\n').length - 1;
+      const oldLines = text.slice(start, end).split('\n');
+      const newLines = oldLines.map((line, index) => {
+        const { item, quote, body, depth, protected: inCode, normalBody } = rows[first + index];
+        if (inCode || normalBody || /^<!-- md-font: /.test(line) || (!line.trim() && oldLines.length > 1)) return line;
+        const indent = body.match(/^[ \t]*/)[0];
+        const padding = depth && item.indent < depth * 4 ? ' '.repeat(depth * 4) : indent;
+        return quote + padding + editorListFormat.sourcePrefix(id) + (depth === undefined ? body.trimStart() : item.content);
+      });
+      const changed = newLines.join('\n');
+      if (text.slice(start, end) === changed) { el.focus(); return; }
+      pushHistory();
+      el.setRangeText(changed, start, end, 'select');
+      if (oldLines.length === 1) el.setSelectionRange(start + changed.length, start + changed.length);
+      commitEditor(el);
+      el.focus();
     }
 
-    function prefixLines(prefix) {
+    function continueFormattedList(el) {
+      const cursor = el.selectionStart;
+      if (!cursor || cursor !== el.selectionEnd) return false;
+      const start = el.value.lastIndexOf('\n', cursor - 1) + 1;
+      const boundary = el.value.indexOf('\n', cursor);
+      const end = boundary < 0 ? el.value.length : boundary;
+      const index = el.value.slice(0, start).split('\n').length - 1;
+      const line = editorListFormat.scan(el.value).rows[index];
+      const item = line.item;
+      if (!item?.custom || line.depth === undefined || cursor < end - item.content.length) return false;
       pushHistory();
+      if (!item.content.trim()) el.setRangeText(line.quote.trimEnd(), start, end, 'end');
+      else {
+        const prefix = item.explicit ? editorListFormat.sourcePrefix(item.id) : item.marker + ' ';
+        el.setRangeText('\n' + line.quote + item.whitespace + prefix, cursor, cursor, 'end');
+      }
+      commitEditor(el);
+      return true;
+    }
+
+    function setDocumentFont(name) {
       const el = getActiveEditor();
+      const header = el.value.match(editorListFormat.fontHeader)?.[0] || '';
+      const next = name ? '<!-- md-font: ' + name + ' -->\n\n' : '';
+      if (header !== next) {
+        pushHistory();
+        const selection = [el.selectionStart, el.selectionEnd].map(position => Math.max(0, position - header.length) + next.length);
+        el.setRangeText(next, 0, header.length, 'start');
+        el.setSelectionRange(...selection);
+        commitEditor(el);
+      }
+      el.focus();
+    }
+
+    const fontMenu = document.getElementById('font-menu');
+    const fontForm = document.getElementById('custom-font-form');
+    const customFont = document.getElementById('custom-font');
+    const editorFormatDropdowns = document.querySelectorAll('.editor-format-dropdown');
+    for (const dropdown of editorFormatDropdowns) {
+      const menu = dropdown.querySelector('.editor-format-menu');
+      dropdown.querySelector('button').addEventListener('click', () => {
+        if (!menu.classList.toggle('show')) return;
+        const rect = dropdown.getBoundingClientRect();
+        menu.style.left = Math.min(0, document.documentElement.clientWidth - rect.left - menu.offsetWidth - 8) + 'px';
+        menu.style.setProperty('--menu-space', Math.max(70, window.innerHeight - rect.bottom - 16) + 'px');
+        if (menu === fontMenu) {
+          const current = editorListFormat.font(draft.text);
+          for (const button of fontMenu.querySelectorAll('[data-font]')) {
+            button.setAttribute('aria-pressed', String(button.dataset.font === current));
+          }
+          customFont.value = current;
+          customFont.setCustomValidity('');
+        }
+      });
+    }
+    for (const [menuId, ids] of [['ordered-menu', editorListFormat.orderedMenu], ['unordered-menu', editorListFormat.bullets]]) {
+      const menu = document.getElementById(menuId);
+      for (const id of ids) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'dropdown-item';
+        button.dataset.listPreset = id;
+        button.textContent = editorListFormat.styles[id].examples.map(value => value + ' ━━').join('\n');
+        button.setAttribute('aria-label', editorListFormat.styles[id].examples.join(' '));
+        button.addEventListener('click', () => {
+          menu.classList.remove('show');
+          formatList(id);
+        });
+        menu.append(button);
+      }
+    }
+    for (const name of ['宋体', '黑体', '楷体', '仿宋', '微软雅黑', 'PingFang SC', 'Aptos', 'Arial', 'Calibri', 'Georgia', 'Times New Roman']) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'dropdown-item';
+      button.dataset.font = button.textContent = name;
+      button.style.fontFamily = '"' + name + '", sans-serif';
+      fontForm.before(button);
+    }
+    fontMenu.addEventListener('click', event => {
+      const button = event.target.closest('[data-font]');
+      if (button) {
+        fontMenu.classList.remove('show');
+        setDocumentFont(button.dataset.font);
+      }
+    });
+    customFont.addEventListener('input', () => customFont.setCustomValidity(''));
+    fontForm.addEventListener('submit', event => {
+      event.preventDefault();
+      const name = customFont.value.trim();
+      if (!editorListFormat.validFont(name)) {
+        customFont.setCustomValidity(t('fontInvalid'));
+        customFont.reportValidity();
+        return;
+      }
+      fontMenu.classList.remove('show');
+      setDocumentFont(name);
+    });
+    function formatTaskList() {
+      const el = getActiveEditor();
+      const text = el.value;
       const start = el.selectionStart;
       const end = el.selectionEnd;
-      const before = el.value.slice(0, start);
-      const selected = el.value.slice(start, end) || t('unordered');
-      const after = el.value.slice(end);
+      const before = text.slice(0, start);
       const firstLineStart = before.lastIndexOf('\n') + 1;
+      const selectedEnd = end > start && text[end - 1] === '\n' ? end - 1 : end;
+      const boundary = text.indexOf('\n', selectedEnd);
+      const lastLineEnd = boundary < 0 ? text.length : boundary;
+      const selected = text.slice(firstLineStart, lastLineEnd);
       const lines = selected.split('\n');
-      const prefixed = lines.map(line => (line ? prefix + line : line)).join('\n');
-      el.setRangeText(prefixed, firstLineStart, end, 'end');
-      syncEditorFromActive();
-      updatePreview();
-      updateCount();
-      autoSave();
+      const first = before.split('\n').length - 1;
+      const { rows } = editorListFormat.scan(text);
+      const tasks = lines.map((line, index) => {
+        const row = rows[first + index];
+        if (row.protected || /^\[[ x]\](?:[ \t]|$)/i.test(row.item?.content || '') ||
+            /^<!-- md-font: /.test(line) || (!line.trim() && lines.length > 1)) return line;
+        const indent = row.body.match(/^[ \t]*/)[0];
+        return row.quote + indent + '- [ ] ' + (row.body.slice(indent.length) || t('unordered'));
+      }).join('\n');
+      if (tasks === selected) { el.focus(); return; }
+      pushHistory();
+      el.setRangeText(tasks, firstLineStart, lastLineEnd, 'end');
+      commitEditor(el);
       el.focus();
     }
 
@@ -2687,10 +3496,7 @@ ${'</scr' + 'ipt>'}
       const currentLine = el.value.slice(lineStart, end);
       const newLine = '#'.repeat(level) + ' ' + currentLine.replace(/^#{0,6}\s*/, '');
       el.setRangeText(newLine, lineStart, end, 'end');
-      syncEditorFromActive();
-      updatePreview();
-      updateCount();
-      autoSave();
+      commitEditor(el);
       el.focus();
     }
 
@@ -2701,20 +3507,21 @@ ${'</scr' + 'ipt>'}
       document.getElementById('heading-menu').classList.remove('show');
     }
 
+    let lastEditor = editor;
+    for (const field of [editor, previewSource]) field.addEventListener('focus', () => { lastEditor = field; });
+
     function getActiveEditor() {
-      if (previewMode === 'source' && document.activeElement === previewSource) {
+      if (previewMode === 'source' && lastEditor === previewSource) {
         return previewSource;
       }
       return editor;
     }
 
-    function syncEditorFromActive() {
-      const el = getActiveEditor();
-      if (el === previewSource) {
-        editor.value = previewSource.value;
-      } else if (previewMode === 'source') {
-        previewSource.value = editor.value;
-      }
+    function commitEditor(el) {
+      commitDraft(el.value);
+      historyStack[historyIndex] = {
+        ...snapshot(), selection: [el.selectionStart, el.selectionEnd]
+      };
     }
 
     function insertLink() {
@@ -2726,24 +3533,61 @@ ${'</scr' + 'ipt>'}
       const url = prompt(t('promptLinkUrl'), t('promptLinkDefault'));
       if (!url) return;
       el.setRangeText('[' + selected + '](' + url + ')', start, end, 'end');
-      syncEditorFromActive();
-      updatePreview();
-      updateCount();
-      autoSave();
+      commitEditor(el);
       el.focus();
     }
 
-    function insertImageMarkdown(alt, url) {
+    async function insertLocalPicture(alt, file) {
+      if (!canEditDraft()) return;
+      const before = draft;
+      const el = getActiveEditor();
+      const selection = [el.selectionStart, el.selectionEnd];
+      try {
+        const src = draftStorage.canRecover() && window.crypto?.subtle
+          ? await editorAttachments.put(file) : await editorAttachments.asDataUrl(file);
+        if (!canEditDraft()) return;
+        if (before.id !== draft.id || before.text !== draft.text) throw new Error('Document changed');
+        el.setSelectionRange(...selection);
+        insertImageMarkdown(alt, src, el);
+        showToast(t('toastImageInserted'));
+      } catch (_) { showToast(t('attachmentError')); }
+    }
+
+    async function migrateInlinePictures() {
+      if (!canEditDraft()) return;
+      const before = draft;
+      if (!draftStorage.canRecover() || !window.crypto?.subtle) {
+        showToast(t('attachmentError'));
+        return;
+      }
+      const inline = /data:image\/(?:png|gif|jpeg|webp|bmp|avif|svg[+]xml);base64,[a-z0-9+/=]+/gi;
+      const paths = new Map();
+      try {
+        for (const url of new Set(before.text.match(inline) || [])) {
+          const response = await fetch(url);
+          paths.set(url, await editorAttachments.put(await response.blob()));
+        }
+        if (draft !== before) throw new Error('Document changed');
+        if (paths.size) {
+          if (!canEditDraft()) return;
+          await saveCheckpoint(before, 'attachment');
+          if (!canEditDraft() || draft !== before) return;
+          pushHistory();
+          commitDraft(before.text.replace(inline, key => paths.get(key)));
+          await saveToLocal();
+          return !dirtyDraft();
+        }
+        return true;
+      } catch (_) { showToast(t('attachmentError')); return false; }
+    }
+
+    function insertImageMarkdown(alt, url, el = getActiveEditor()) {
       pushHistory();
       const safeAlt = String(alt).replace(/\]/g, '\\]');
-      const el = getActiveEditor();
       const start = el.selectionStart;
       const end = el.selectionEnd;
       el.setRangeText('![' + (safeAlt || t('image')) + '](' + url + ')', start, end, 'end');
-      syncEditorFromActive();
-      updatePreview();
-      updateCount();
-      autoSave();
+      commitEditor(el);
       el.focus();
     }
 
@@ -2756,7 +3600,9 @@ ${'</scr' + 'ipt>'}
       grid.innerHTML = '';
       for (let r = 1; r <= TABLE_GRID_ROWS; r++) {
         for (let c = 1; c <= TABLE_GRID_COLS; c++) {
-          const cell = document.createElement('div');
+          const cell = document.createElement('button');
+          cell.type = 'button';
+          cell.setAttribute('aria-label', t('tableSizeLabel', r, c));
           cell.className = 'table-grid-cell';
           cell.dataset.row = r;
           cell.dataset.col = c;
@@ -2766,6 +3612,9 @@ ${'</scr' + 'ipt>'}
       grid.addEventListener('mouseover', (e) => {
         if (!e.target.classList.contains('table-grid-cell')) return;
         highlightTableCells(parseInt(e.target.dataset.row), parseInt(e.target.dataset.col));
+      });
+      grid.addEventListener('focusin', (e) => {
+        if (e.target.matches('.table-grid-cell')) highlightTableCells(+e.target.dataset.row, +e.target.dataset.col);
       });
       grid.addEventListener('click', (e) => {
         if (!e.target.classList.contains('table-grid-cell')) return;
@@ -2814,10 +3663,7 @@ ${'</scr' + 'ipt>'}
       const start = el.selectionStart;
       const end = el.selectionEnd;
       el.setRangeText(table, start, end, 'end');
-      syncEditorFromActive();
-      updatePreview();
-      updateCount();
-      autoSave();
+      commitEditor(el);
       el.focus();
     }
 
@@ -2833,15 +3679,12 @@ ${'</scr' + 'ipt>'}
       document.getElementById('image-file-input').value = '';
       switchImageTab('url');
       const el = document.getElementById('image-modal');
-      el.style.display = 'flex';
-      void el.offsetWidth;
-      el.classList.add('show');
+      showDialog(el);
     }
 
     function closeImageModal() {
       const el = document.getElementById('image-modal');
-      el.classList.remove('show');
-      setTimeout(() => { if (!el.classList.contains('show')) el.style.display = 'none'; }, 200);
+      dismissDialog(el);
       pendingImageDataUrl = '';
     }
 
@@ -2883,16 +3726,24 @@ ${'</scr' + 'ipt>'}
     }
 
     function confirmImageInsert() {
+      if (!canEditDraft()) return;
       const activeTab = document.querySelector('.image-tab.active').dataset.tab;
       let url = '';
       let alt = '';
       if (activeTab === 'url') {
-        url = document.getElementById('image-url-input').value.trim();
+        const input = document.getElementById('image-url-input');
+        url = input.value.trim();
         alt = document.getElementById('image-url-alt').value.trim();
         if (!url) {
           showToast(t('toastEnterImageUrl'));
           return;
         }
+        if (/[\s<>\\]/.test(url) || !markdownContent.safeUrl(url, document.baseURI, true)) {
+          showToast(t('toastInvalidImageUrl'));
+          input.focus();
+          return;
+        }
+        if (/[()]/.test(url)) url = '<' + url + '>';
       } else {
         url = pendingImageDataUrl;
         alt = document.getElementById('image-upload-alt').value.trim();
@@ -2901,8 +3752,10 @@ ${'</scr' + 'ipt>'}
           return;
         }
       }
-      insertImageMarkdown(alt || t('image'), url);
+      const file = activeTab === 'upload' ? document.getElementById('image-file-input').files[0] : null;
       closeImageModal();
+      if (file) void insertLocalPicture(alt, file);
+      else insertImageMarkdown(alt, url);
     }
 
     // Mermaid 图表
@@ -2915,15 +3768,12 @@ ${'</scr' + 'ipt>'}
       document.getElementById('mermaid-type').value = 'mindmap';
       updateMermaidTemplate();
       const el = document.getElementById('mermaid-modal');
-      el.style.display = 'flex';
-      void el.offsetWidth;
-      el.classList.add('show');
+      showDialog(el);
     }
 
     function closeMermaidModal() {
       const el = document.getElementById('mermaid-modal');
-      el.classList.remove('show');
-      setTimeout(() => { if (!el.classList.contains('show')) el.style.display = 'none'; }, 200);
+      dismissDialog(el);
     }
 
     function updateMermaidTemplate() {
@@ -2932,6 +3782,7 @@ ${'</scr' + 'ipt>'}
     }
 
     function confirmMermaidInsert() {
+      if (!canEditDraft()) return;
       const code = document.getElementById('mermaid-code').value.trim();
       if (!code) {
         showToast(t('toastMermaidEmpty'));
@@ -2943,49 +3794,36 @@ ${'</scr' + 'ipt>'}
       const end = el.selectionEnd;
       const fenced = '\n```mermaid\n' + code + '\n```\n\n';
       el.setRangeText(fenced, start, end, 'end');
-      syncEditorFromActive();
-      updatePreview();
-      updateCount();
-      autoSave();
+      commitEditor(el);
       closeMermaidModal();
       showToast(t('toastMermaidInserted'));
     }
 
-    function renderMermaidBlocks() {
-      if (typeof mermaid === 'undefined') return;
-      const blocks = preview.querySelectorAll('.markdown-body pre code.language-mermaid');
-      if (!blocks.length) return;
-      blocks.forEach(code => {
-        const pre = code.parentElement;
-        const source = code.textContent.trim();
-        if (!source) return;
-        const container = document.createElement('div');
-        container.className = 'mermaid';
-        container.textContent = source;
-        pre.replaceWith(container);
-      });
-      try {
-        mermaid.run({ querySelector: '.markdown-body .mermaid' });
-      } catch (err) {
-        console.error('Mermaid render error:', err);
-      }
+    // 视图布局与全屏
+    function canEditDraft() {
+      return ready && !switchingDocuments && !editorCollapsed;
     }
 
-    // 视图布局与全屏
-    function setLayoutMode(mode) {
-      if (mode === 'edit') {
-        editorCollapsed = false;
-        previewCollapsed = true;
-      } else if (mode === 'preview') {
-        editorCollapsed = true;
-        previewCollapsed = false;
-        if (previewMode !== 'preview') setPreviewMode('preview');
-      } else {
-        editorCollapsed = false;
-        previewCollapsed = false;
+    function updateEditAvailability() {
+      const disabled = !canEditDraft();
+      editor.disabled = previewSource.disabled = filenameInput.disabled = disabled;
+      document.querySelectorAll('.format-group button:not(#find-button), #custom-font, [data-edit-action]')
+        .forEach(control => { control.disabled = disabled; });
+      if (disabled) {
+        document.querySelectorAll('.format-group .dropdown-menu.show').forEach(menu => menu.classList.remove('show'));
+        clearReplacePlan();
       }
+      updateRecoveryPreview();
+    }
+
+    function setLayoutMode(mode) {
+      if (mode === 'preview' && !editorCollapsed) importSequence++;
+      editorCollapsed = mode === 'preview';
+      previewCollapsed = mode === 'edit';
+      if (editorCollapsed && previewMode === 'source') setPreviewMode('preview');
       applyPaneStates();
-      localStorage.setItem(LAYOUT_MODE_KEY, mode);
+      preferences.setItem(LAYOUT_MODE_KEY, mode);
+      updateEditAvailability();
       updateViewMenuLabel();
     }
 
@@ -2996,10 +3834,9 @@ ${'</scr' + 'ipt>'}
       document.getElementById('view-menu').classList.remove('show');
     }
     function updateViewMenuLabel() {
-      const mode = localStorage.getItem(LAYOUT_MODE_KEY) || 'both';
-      const labels = { both: t('view'), edit: t('viewEdit'), preview: t('viewPreview') };
+      const label = editorCollapsed ? 'viewPreview' : previewCollapsed ? 'viewEdit' : 'view';
       const btn = document.querySelector('#view-dropdown > button');
-      if (btn) btn.innerHTML = (labels[mode] || t('view')) + ' ▾';
+      if (btn) btn.textContent = t(label) + ' ▾';
     }
 
     function togglePageFullscreen() {
@@ -3007,7 +3844,7 @@ ${'</scr' + 'ipt>'}
       app.classList.toggle('page-fullscreen');
       const isActive = app.classList.contains('page-fullscreen');
       document.body.classList.toggle('page-fullscreen-active', isActive);
-      localStorage.setItem(PAGE_FULLSCREEN_KEY, isActive);
+      preferences.setItem(PAGE_FULLSCREEN_KEY, isActive);
       showToast(isActive ? t('toastPageFullscreenOn') : t('toastPageFullscreenOff'));
     }
 
@@ -3031,50 +3868,149 @@ ${'</scr' + 'ipt>'}
       // Optionally update toolbar state here in the future
     }
 
+    let activeDialog;
+    let dialogOpener;
+    let allowTabExit = false;
+
+    function showDialog(dialog) {
+      if (activeDialog === dialog) return;
+      const focused = document.activeElement;
+      dialogOpener = focused.closest('.dropdown-menu')?.parentElement.querySelector(':scope > button') || focused;
+      activeDialog = dialog;
+      dialog.style.display = 'flex';
+      void dialog.offsetWidth;
+      dialog.classList.add('show');
+      const preferred = [...dialog.querySelectorAll('.modal-body input,.modal-body textarea,.modal-body select,.modal-footer .primary')]
+        .find(el => !el.disabled && el.getClientRects().length);
+      (preferred || dialog.querySelector('.modal-header button'))?.focus();
+    }
+
+    function dismissDialog(dialog) {
+      if (activeDialog === dialog) {
+        activeDialog = undefined;
+        dialogOpener?.focus();
+        dialogOpener = undefined;
+      }
+      dialog.classList.remove('show');
+      setTimeout(() => { if (!dialog.classList.contains('show')) dialog.style.display = 'none'; }, 200);
+    }
+
+    const dialogClosers = {
+      'outline-modal': closeOutline, 'template-modal': closeTemplates,
+      'workspace-modal': closeWorkspace,
+      'export-settings': closeExportSettings, 'export-check': cancelExportCheck,
+      'recovery-modal': closeRecovery,
+      'help-modal': closeHelp, 'url-modal': closeUrlModal, 'find-modal': closeFindModal,
+      'image-modal': closeImageModal, 'mermaid-modal': closeMermaidModal,
+      'export-image-modal': closeExportImageModal
+    };
+    const dropdowns = [...document.querySelectorAll('.dropdown-menu')];
+    for (const menu of dropdowns) {
+      const trigger = menu.parentElement.querySelector(':scope > button');
+      trigger.setAttribute('aria-controls', menu.id);
+      trigger.setAttribute('aria-expanded', 'false');
+      new MutationObserver(() => {
+        const open = menu.classList.contains('show');
+        trigger.setAttribute('aria-expanded', String(open));
+        if (open && document.activeElement === trigger) menu.querySelector('button')?.focus();
+        if (!open && menu.contains(document.activeElement)) trigger.focus();
+      }).observe(menu, { attributes: true, attributeFilter: ['class'] });
+    }
+    document.addEventListener('keydown', event => {
+      if (activeDialog) {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          dialogClosers[activeDialog.id]();
+        }
+        if (event.key === 'Tab') {
+          const controls = [...activeDialog.querySelectorAll('button,input,select,textarea,a[href]')]
+            .filter(el => !el.disabled && el.tabIndex >= 0 && el.getClientRects().length);
+          if (!controls.length) return;
+          const first = controls[0];
+          const last = controls.at(-1);
+          if (!activeDialog.contains(document.activeElement) ||
+              (event.shiftKey ? document.activeElement === first : document.activeElement === last)) {
+            event.preventDefault();
+            (event.shiftKey ? last : first).focus();
+          }
+        }
+      } else if (event.key === 'Escape') {
+        const menu = dropdowns.find(menu => menu.classList.contains('show'));
+        if (menu) {
+          event.preventDefault();
+          menu.classList.remove('show');
+          menu.parentElement.querySelector(':scope > button').focus();
+        }
+      }
+    });
+
     // 帮助模态框
     function openHelp() {
       const el = document.getElementById('help-modal');
-      el.style.display = 'flex';
-      void el.offsetWidth;
-      el.classList.add('show');
+      showDialog(el);
     }
     function closeHelp() {
       const el = document.getElementById('help-modal');
-      el.classList.remove('show');
-      setTimeout(() => { if (!el.classList.contains('show')) el.style.display = 'none'; }, 200);
-      localStorage.setItem(HELP_SHOWN_KEY, 'true');
+      dismissDialog(el);
+      preferences.setItem(HELP_SHOWN_KEY, 'true');
     }
 
     // 网页转 Markdown 模态框
+    const webUrlInput = document.getElementById('url-input');
+    const webUrlStatus = document.getElementById('url-status');
+
+    function webAddress() {
+      const url = markdownContent.safeUrl(webUrlInput.value.trim());
+      return /^https?:/i.test(url || '') ? url : null;
+    }
+
+    function cancelWebFetch() {
+      webFetch?.controller.abort();
+      webFetch = undefined;
+    }
+
+    webUrlInput.addEventListener('input', () => {
+      if (webFetch?.url === webAddress()) return;
+      cancelWebFetch();
+      webUrlStatus.textContent = '';
+    });
+
     function openUrlModal() {
       const el = document.getElementById('url-modal');
-      el.style.display = 'flex';
-      void el.offsetWidth;
-      el.classList.add('show');
-      document.getElementById('url-input').value = '';
-      document.getElementById('url-status').textContent = '';
-      document.getElementById('url-status').style.color = 'var(--text-muted)';
-      document.getElementById('manual-area').style.display = 'none';
+      showDialog(el);
+      webUrlInput.value = '';
+      webUrlStatus.textContent = '';
+      webUrlStatus.style.color = 'var(--text-muted)';
       document.getElementById('manual-html').value = '';
       document.getElementById('use-local-proxy').checked = false;
-      document.getElementById('proxy-url').style.display = 'none';
-      fetchedHtml = '';
+      toggleProxyInput();
+      cancelWebFetch();
     }
     function closeUrlModal() {
       const el = document.getElementById('url-modal');
-      el.classList.remove('show');
-      setTimeout(() => { if (!el.classList.contains('show')) el.style.display = 'none'; }, 200);
-      fetchedHtml = '';
+      dismissDialog(el);
+      cancelWebFetch();
     }
 
     // 查找与替换
     let findIndex = 0;
 
+    let replacePlan;
+    const replacementPreview = document.getElementById('replace-preview');
+
+    function clearReplacePlan() {
+      replacePlan = undefined;
+      replacementPreview.hidden = true;
+      document.getElementById('apply-replace-all').disabled = true;
+    }
+    for (const id of ['find-input', 'replace-input']) {
+      document.getElementById(id).addEventListener('input', clearReplacePlan);
+    }
+
     function openFindModal() {
+      clearReplacePlan();
       const el = document.getElementById('find-modal');
-      el.style.display = 'flex';
-      void el.offsetWidth;
-      el.classList.add('show');
+      showDialog(el);
       const findInput = document.getElementById('find-input');
       const ed = getActiveEditor();
       if (ed.selectionStart !== ed.selectionEnd) {
@@ -3087,8 +4023,7 @@ ${'</scr' + 'ipt>'}
 
     function closeFindModal() {
       const el = document.getElementById('find-modal');
-      el.classList.remove('show');
-      setTimeout(() => { if (!el.classList.contains('show')) el.style.display = 'none'; }, 200);
+      dismissDialog(el);
       document.getElementById('find-status').textContent = '';
     }
 
@@ -3111,11 +4046,12 @@ ${'</scr' + 'ipt>'}
       }
       findIndex = pos + query.length;
       el.setSelectionRange(pos, findIndex);
-      el.focus();
+
       status.textContent = t('statusFoundMatch');
     }
 
     function replaceOne() {
+      if (!canEditDraft()) return;
       const query = document.getElementById('find-input').value;
       const replacement = document.getElementById('replace-input').value;
       const status = document.getElementById('find-status');
@@ -3131,130 +4067,239 @@ ${'</scr' + 'ipt>'}
         findNext();
         return;
       }
+      pushHistory();
       el.setRangeText(replacement, start, end, 'end');
-      syncEditorFromActive();
+      commitEditor(el);
       findIndex = start + replacement.length;
-      updatePreview();
-      updateCount();
-      autoSave();
       findNext();
     }
 
-    function replaceAll() {
+    function previewReplaceAll() {
+      if (!canEditDraft()) return;
+      clearReplacePlan();
       const query = document.getElementById('find-input').value;
       const replacement = document.getElementById('replace-input').value;
       const status = document.getElementById('find-status');
-      const el = getActiveEditor();
-      if (!query) {
-        status.textContent = '';
+      if (!query) return;
+      const segments = draft.text.split(query);
+      const count = segments.length - 1;
+      if (!count) { status.textContent = t('statusNoMatch'); return; }
+      replacePlan = { id: draft.id, original: draft.text, query, replacement, text: segments.join(replacement), count };
+      status.textContent = t('writingMatches', count);
+      replacementPreview.value = segments.slice(0, 20).map((part, index) => {
+        if (index >= count) return '';
+        return part.slice(-40) + query + segments[index + 1].slice(0, 40) + '\n→ ' +
+          part.slice(-40) + replacement + segments[index + 1].slice(0, 40);
+      }).filter(Boolean).join('\n\n');
+      replacementPreview.hidden = false;
+      document.getElementById('apply-replace-all').disabled = false;
+    }
+
+    function replaceAll() {
+      if (!canEditDraft()) return;
+      const plan = replacePlan;
+      clearReplacePlan();
+      const status = document.getElementById('find-status');
+      if (!plan || plan.id !== draft.id || plan.original !== draft.text ||
+          plan.query !== document.getElementById('find-input').value ||
+          plan.replacement !== document.getElementById('replace-input').value) {
+        status.textContent = t('writingStale');
         return;
       }
-      let count = 0;
-      let text = el.value;
-      let pos = text.indexOf(query);
-      while (pos !== -1) {
-        count++;
-        text = text.slice(0, pos) + replacement + text.slice(pos + query.length);
-        pos = text.indexOf(query, pos + replacement.length);
+      pushHistory();
+      commitDraft(plan.text);
+      findIndex = 0;
+      status.textContent = t('statusReplacedCount', plan.count);
+    }
+
+    const outlineList = document.getElementById('outline-list');
+    let outlineEntries = [];
+    let outlineText;
+    function sourceHeadings(text) {
+      const normalized = text.replace(/\\r\\n?/g, '\\n');
+      let offset = 0;
+      let line = 1;
+      return marked.lexer(normalized, { gfm: true }).flatMap(token => {
+        const start = normalized.indexOf(token.raw, offset);
+        if (start >= 0) offset = start + token.raw.length;
+        if (token.type !== 'heading' || start < 0) return [];
+        const prefix = normalized.slice(0, start);
+        const line = prefix.split('\\n').length;
+        const title = token.text.replace(/\\s+/g, ' ');
+        return [{ title, line, depth: token.depth, offset: start }];
+      });
+    }
+
+    function outlineSource() {
+      return (editorCollapsed && previewPaused ? renderedPreviewText : undefined) ?? draft.text;
+    }
+
+    function refreshOutline() {
+      outlineText = outlineSource();
+      outlineEntries = sourceHeadings(outlineText);
+      outlineList.replaceChildren(...outlineEntries.map((entry, index) =>
+        new Option('   '.repeat(entry.depth - 1) + entry.title + ' · ' + entry.line, String(index))));
+      document.getElementById('outline-status').textContent = outlineEntries.length ? '' : t('writingNoHeadings');
+    }
+
+    function openOutline() {
+      refreshOutline();
+      showDialog(document.getElementById('outline-modal'));
+    }
+
+    function closeOutline() { dismissDialog(document.getElementById('outline-modal')); }
+
+    function jumpToHeading() {
+      if (outlineText !== outlineSource()) { refreshOutline(); return; }
+      const entry = outlineEntries[outlineList.selectedIndex];
+      if (!entry) return;
+      const index = outlineList.selectedIndex;
+      const targetText = outlineText;
+      closeOutline();
+      if (!editorCollapsed) {
+        const el = getActiveEditor();
+        el.focus();
+        el.setSelectionRange(entry.offset, entry.offset);
+        const lineHeight = parseFloat(getComputedStyle(el).lineHeight);
+        if (Number.isFinite(lineHeight)) el.scrollTop = Math.max(0, (entry.line - 3) * lineHeight);
       }
-      if (count > 0) {
-        el.value = text;
-        syncEditorFromActive();
-        findIndex = 0;
-        updatePreview();
-        updateCount();
-        autoSave();
+      if ((!previewPaused || editorCollapsed) && previewMode === 'preview') {
+        Promise.resolve(updatePreview()).then(() => {
+          if (renderedPreviewText === targetText) {
+            const headings = preview.querySelectorAll('.markdown-body > :is(h1,h2,h3,h4,h5,h6)');
+            const heading = headings[index];
+            if (heading) preview.scrollTop = heading.getBoundingClientRect().top -
+              preview.getBoundingClientRect().top + preview.scrollTop - 12;
+          }
+        });
       }
-      status.textContent = count > 0 ? t('statusReplacedCount', count) : t('statusNoMatch');
+    }
+    outlineList.addEventListener('dblclick', jumpToHeading);
+    outlineList.addEventListener('keydown', event => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        jumpToHeading();
+      }
+    });
+
+    const templateList = document.getElementById('template-list');
+    const templateContent = document.getElementById('template-content');
+    function updateTemplate() {
+      const titles = {
+        readme: ['Project', 'Overview', 'Getting started', 'Usage'],
+        meeting: ['Meeting notes', 'Agenda', 'Decisions', 'Action items'],
+        technical: ['Technical document', 'Context', 'Design', 'Verification']
+      };
+      const chinese = {
+        readme: ['项目名称', '简介', '快速开始', '使用方法'],
+        meeting: ['会议纪要', '议程', '决定', '行动事项'],
+        technical: ['技术文档', '背景', '设计', '验证']
+      };
+      const [title, ...sections] = (currentLang.startsWith('zh') ? chinese : titles)[templateList.value];
+      templateContent.value = '# ' + title + '\\n\\n' + sections.map(name => '## ' + name + '\\n\\n').join('');
+    }
+    templateList.addEventListener('change', updateTemplate);
+
+    function openTemplates() {
+      updateTemplate();
+      showDialog(document.getElementById('template-modal'));
+    }
+
+    function closeTemplates() { dismissDialog(document.getElementById('template-modal')); }
+
+    function insertTemplate() {
+      if (!canEditDraft()) return;
+      const content = templateContent.value;
+      closeTemplates();
+      const el = getActiveEditor();
+      pushHistory();
+      el.setRangeText(content, el.selectionStart, el.selectionEnd, 'end');
+      commitEditor(el);
+      el.focus();
     }
 
     function toggleProxyInput() {
       const checked = document.getElementById('use-local-proxy').checked;
       document.getElementById('proxy-url').style.display = checked ? 'block' : 'none';
+      document.getElementById('proxy-token').style.display = checked ? 'block' : 'none';
     }
 
     // 尝试通过本地代理或公共 CORS 代理获取网页
     async function fetchUrl() {
-      const urlInput = document.getElementById('url-input');
-      const status = document.getElementById('url-status');
-      const manualArea = document.getElementById('manual-area');
-      const useLocalProxy = document.getElementById('use-local-proxy').checked;
-      const proxyUrlInput = document.getElementById('proxy-url');
-      const url = urlInput.value.trim();
-
+      cancelWebFetch();
+      const status = webUrlStatus;
+      status.textContent = '';
+      const url = webAddress();
       if (!url) {
         status.textContent = t('urlStatusEmptyUrl');
         status.style.color = 'var(--danger)';
         return;
       }
 
+      const usingLocal = document.getElementById('use-local-proxy').checked;
+      if (!usingLocal && !confirm(t('publicFetchConfirm', url, 'AllOrigins, CodeTabs'))) return;
+      const controller = new AbortController();
+      const request = webFetch = { url, controller };
+      const timeout = setTimeout(() => controller.abort(new DOMException('Timed out', 'TimeoutError')), 24000);
+      const { signal } = controller;
+      const active = () => webFetch === request && url === webAddress();
       status.textContent = t('urlStatusFetching');
       status.style.color = 'var(--text-muted)';
-      fetchedHtml = '';
 
-      // 优先使用本地代理（可绕过 CORS 和大部分反爬）
-      if (useLocalProxy) {
-        const proxyUrl = (proxyUrlInput.value.trim() || 'http://localhost:8765/fetch') + '?url=' + encodeURIComponent(url);
-        let data = null;
-        try {
-          const response = await fetch(proxyUrl);
-          if (!response.ok) throw new Error('Local proxy response not ok');
-          data = await response.json();
-          if (data.success === false) {
-            throw new Error(data.error || 'Unknown proxy error');
+      try {
+        if (usingLocal) {
+          const endpoint = new URL(document.getElementById('proxy-url').value || 'http://127.0.0.1:8765/fetch');
+          if (endpoint.protocol !== 'http:' || !['127.0.0.1', 'localhost'].includes(endpoint.hostname) ||
+              endpoint.username || endpoint.password) throw new Error(t('proxyLocalOnly'));
+          endpoint.searchParams.set('url', url);
+          const token = document.getElementById('proxy-token').value.trim();
+          if (!token) throw new Error(t('proxyPairing'));
+          const response = await fetch(endpoint, {
+            headers: { 'X-Markdown-Token': token }, redirect: 'error', credentials: 'omit', signal
+          });
+          const data = await response.json();
+          if (!response.ok || !data.success || typeof data.html !== 'string' || !data.html.trim()) {
+            throw new Error(data.error || response.statusText);
           }
-          fetchedHtml = data.html || data.content || '';
-          if (!fetchedHtml) throw new Error('Local proxy returned empty content');
-          status.textContent = t('urlStatusLocalSuccess');
-          status.style.color = 'var(--accent)';
-          manualArea.style.display = 'none';
-          return;
-        } catch (err) {
-          const hint = data?.hint ? data.hint : '';
-          status.innerHTML = t('urlStatusLocalFailed', err.message) + (hint ? '<br><small>' + hint + '</small>' : '');
-          status.style.color = 'var(--danger)';
-          manualArea.style.display = 'block';
-          return;
-        }
-      }
-
-      // 公共代理 fallback
-      const proxies = [
-        { url: 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url), type: 'text' },
-        { url: 'https://api.allorigins.win/get?url=' + encodeURIComponent(url), type: 'json', field: 'contents' },
-        { url: 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(url), type: 'text' }
-      ];
-
-      let lastError = '';
-      for (const proxy of proxies) {
-        try {
-          const response = await fetch(proxy.url);
-          if (!response.ok) throw new Error('Proxy response not ok');
-          let text;
-          if (proxy.type === 'json') {
-            const data = await response.json();
-            text = data[proxy.field];
-            // allorigins 有时返回 base64
-            if (typeof text === 'string' && /^[A-Za-z0-9+/=]+$/.test(text) && text.length % 4 === 0) {
-              try { text = atob(text); } catch (e) {}
+          if (!active()) return;
+          request.html = data.html;
+          request.base = markdownContent.safeUrl(data.url) || url;
+        } else {
+          const encoded = encodeURIComponent(url);
+          const sources = [
+            ['https://api.allorigins.win/get?url=' + encoded, true],
+            ['https://api.codetabs.com/v1/proxy?quest=' + encoded, false]
+          ];
+          let failure;
+          for (const [proxy, json] of sources) {
+            try {
+              const response = await fetch(proxy, {
+                signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]), credentials: 'omit', redirect: 'error'
+              });
+              if (!response.ok) throw new Error('HTTP ' + response.status);
+              const data = json ? await response.json() : { contents: await response.text() };
+              if (!active()) return;
+              if (typeof data.contents !== 'string' || !data.contents.trim()) throw new Error('Empty response');
+              request.html = data.contents;
+              request.base = markdownContent.safeUrl(data.status?.url) || url;
+              break;
+            } catch (error) {
+              failure = error;
+              if (!active()) return;
+              if (signal.aborted) throw error;
             }
-          } else {
-            text = await response.text();
           }
-          if (!text || text.length < 100) throw new Error('Content too short');
-          fetchedHtml = text;
-          status.textContent = t('urlStatusPublicSuccess');
-          status.style.color = 'var(--accent)';
-          manualArea.style.display = 'none';
-          return;
-        } catch (err) {
-          lastError = err.message;
+          if (!request.html) throw failure;
         }
+        status.textContent = t(usingLocal ? 'urlStatusLocalSuccess' : 'urlStatusPublicSuccess');
+        status.style.color = 'var(--accent)';
+      } catch (error) {
+        if (!active()) return;
+        status.textContent = t(usingLocal ? 'urlStatusLocalFailed' : 'urlStatusPublicFailed', error.message);
+        status.style.color = 'var(--danger)';
+      } finally {
+        clearTimeout(timeout);
       }
-
-      status.textContent = t('urlStatusPublicFailed', lastError);
-      status.style.color = 'var(--danger)';
-      manualArea.style.display = 'block';
     }
 
     // 提取网页元信息
@@ -3292,14 +4337,23 @@ ${'</scr' + 'ipt>'}
       return root;
     }
 
+    function escapeMarkdownText(text) {
+      return text.replace(/[\\\x60*_[\]<>~#|>]/g, '\\$&');
+    }
+
+    function codeFence(source, minimum) {
+      const longest = (source.match(/\x60+/g) || []).reduce((length, run) => Math.max(length, run.length), 0);
+      return '\x60'.repeat(Math.max(minimum, longest + 1));
+    }
+
     // 将提取的 HTML 转为 Markdown
-    function htmlToMarkdown(node) {
+    function htmlToMarkdown(node, base) {
       if (node.nodeType === Node.TEXT_NODE) {
-        return node.textContent.replace(/\s+/g, ' ');
+        return escapeMarkdownText(node.textContent.replace(/\s+/g, ' '));
       }
       if (node.nodeType !== Node.ELEMENT_NODE) return '';
       const tag = node.tagName.toLowerCase();
-      const children = Array.from(node.childNodes).map(htmlToMarkdown).join('');
+      const children = Array.from(node.childNodes, child => htmlToMarkdown(child, base)).join('');
       switch (tag) {
         case 'h1': return '# ' + children.trim() + '\n\n';
         case 'h2': return '## ' + children.trim() + '\n\n';
@@ -3310,32 +4364,43 @@ ${'</scr' + 'ipt>'}
         case 'p': return children.trim() + '\n\n';
         case 'br': return '\n';
         case 'a':
-          const href = node.getAttribute('href') || '';
-          return '[' + children + '](' + href + ')';
+          const href = markdownContent.safeUrl(node.getAttribute('href'), base);
+          return href ? '[' + children + '](<' + href.replace(/[<>]/g, encodeURIComponent) + '>)' : children;
         case 'strong':
         case 'b': return '**' + children + '**';
         case 'em':
         case 'i': return '*' + children + '*';
-        case 'code': return '`' + children + '`';
-        case 'pre':
-          const code = node.querySelector('code');
-          if (code) {
-            let lang = '';
-            const cls = code.className || '';
-            const m = cls.match(/language-(\w+)/);
-            if (m) lang = m[1];
-            return '\n```' + lang + '\n' + code.textContent.trim() + '\n```\n\n';
-          }
-          return '\n```\n' + children.trim() + '\n```\n\n';
+        case 'code': {
+          const source = node.textContent;
+          const fence = codeFence(source, 1);
+          return fence + ' ' + source + ' ' + fence;
+        }
+        case 'pre': {
+          const code = node.querySelector('code') || node;
+          const source = code.textContent;
+          const lang = code.className?.match(/language-([\w-]+)/)?.[1] || '';
+          const fence = codeFence(source, 3);
+          return '\n' + fence + lang + '\n' + source +
+            (source.endsWith('\n') ? '' : '\n') + fence + '\n\n';
+        }
         case 'ul':
-          return Array.from(node.children).map(li => '- ' + htmlToMarkdown(li).trim()).join('\n') + '\n\n';
         case 'ol':
-          return Array.from(node.children).map((li, idx) => (idx + 1) + '. ' + htmlToMarkdown(li).trim()).join('\n') + '\n\n';
-        case 'li': return children.trim();
+          return Array.from(node.children).filter(li => li.tagName === 'LI').map((li, index) => {
+            const marker = tag === 'ol' ? (node.start + index) + '. ' : '- ';
+            const lines = htmlToMarkdown(li, base).trim().split('\n');
+            return marker + lines[0] + lines.slice(1).map(line =>
+              '\n' + (line ? ' '.repeat(marker.length) + line : '')).join('');
+          }).join('\n') + '\n\n';
+        case 'li':
+          return [...node.childNodes].map(child => {
+            const value = htmlToMarkdown(child, base);
+            return child.nodeType === Node.ELEMENT_NODE && child.matches('ol,ul')
+              ? '\n' + value : value;
+          }).join('');
         case 'blockquote':
           return '> ' + children.trim().replace(/\n/g, '\n> ') + '\n\n';
         case 'hr': return '---\n\n';
-        case 'table': return convertTable(node);
+        case 'table': return convertTable(node, base);
         case 'div': return children.trim() + '\n\n';
         case 'figure': return children.trim() + '\n\n';
         case 'section': return children.trim() + '\n\n';
@@ -3343,13 +4408,13 @@ ${'</scr' + 'ipt>'}
       }
     }
 
-    function convertTable(table) {
+    function convertTable(table, base) {
       const rows = Array.from(table.querySelectorAll('tr'));
       if (!rows.length) return '';
       let md = '\n';
       rows.forEach((tr, i) => {
         const cells = Array.from(tr.querySelectorAll('td, th')).map(td => {
-          return htmlToMarkdown(td).trim().replace(/\|/g, '\\|');
+          return htmlToMarkdown(td, base).trim();
         });
         if (cells.length) {
           md += '| ' + cells.join(' | ') + ' |\n';
@@ -3363,8 +4428,12 @@ ${'</scr' + 'ipt>'}
 
     // 转换并插入到编辑器
     function convertAndInsert() {
+      if (!canEditDraft()) return;
       const manualHtml = document.getElementById('manual-html').value.trim();
-      const html = fetchedHtml || manualHtml;
+      const url = webAddress();
+      const fetched = webFetch?.url === url ? webFetch : undefined;
+      const html = manualHtml || fetched?.html;
+      const base = (manualHtml ? url : fetched?.base) || undefined;
       if (!html) {
         showToast(t('toastNoContent'));
         return;
@@ -3372,21 +4441,22 @@ ${'</scr' + 'ipt>'}
       try {
         const doc = new DOMParser().parseFromString(html, 'text/html');
         const meta = extractMeta(doc);
+        meta.title = meta.title.replace(/\s+/g, ' ');
         const main = extractMainContent(doc);
         const cleaned = stripUnwantedElements(main.cloneNode(true));
-        let bodyMd = htmlToMarkdown(cleaned).replace(/\n{3,}/g, '\n\n').trim();
+        let bodyMd = htmlToMarkdown(cleaned, base).trim();
 
         // 避免 bodyMd 以 h1 开头与标题重复
-        if (meta.title && bodyMd.toLowerCase().startsWith('# ' + meta.title.toLowerCase())) {
+        if (meta.title && bodyMd.toLowerCase().startsWith('# ' + escapeMarkdownText(meta.title).toLowerCase())) {
           bodyMd = bodyMd.replace(/^#\s+.+\n+/, '');
         }
 
         let markdown = '';
-        if (meta.title) markdown += '# ' + meta.title + '\n\n';
+        if (meta.title) markdown += '# ' + escapeMarkdownText(meta.title) + '\n\n';
         const metaParts = [];
         if (meta.author) metaParts.push('作者：' + meta.author);
         if (meta.published) metaParts.push('发布时间：' + meta.published);
-        if (metaParts.length) markdown += '> ' + metaParts.join(' | ') + '\n\n';
+        if (metaParts.length) markdown += '> ' + metaParts.map(part => escapeMarkdownText(part.replace(/\s+/g, ' '))).join(' | ') + '\n\n';
         markdown += bodyMd;
         markdown = markdown.trim();
 
@@ -3395,18 +4465,9 @@ ${'</scr' + 'ipt>'}
           return;
         }
 
-        if (!editor.value.trim()) {
-          editor.value = markdown;
-        } else {
-          editor.value += '\n\n' + markdown;
-        }
-
-        if (previewMode === 'source') {
-          previewSource.value = editor.value;
-        }
-        updatePreview();
-        updateCount();
-        saveToLocal();
+        pushHistory();
+        commitDraft(draft.text.trim() ? draft.text + '\n\n' + markdown : markdown);
+        void saveToLocal();
         closeUrlModal();
         showToast(t('toastInsertedMd'));
       } catch (err) {
@@ -3421,80 +4482,16 @@ ${'</scr' + 'ipt>'}
       setTimeout(() => toast.classList.remove('show'), 2000);
     }
 
-    // ── 软换行自动转硬换行（表格除外）──
-    let convertingLineBreaks = false;
-
-    function convertSoftBreaksToHardBreaks() {
-      if (convertingLineBreaks) return false;
-      const oldValue = editor.value;
-      const lines = oldValue.split('\n');
-      const isTableRow = (line) => /^\s*\|.*\|\s*$/.test(line);
-      const result = [];
-      const doubledFlags = new Array(lines.length).fill(false);
-      for (let i = 0; i < lines.length; i++) {
-        result.push(lines[i]);
-        if (i === lines.length - 1) continue;
-        if (lines[i] === '' || lines[i + 1] === '') continue;
-        if (isTableRow(lines[i]) && isTableRow(lines[i + 1])) continue;
-        result.push('');
-        doubledFlags[i] = true;
-      }
-      const newValue = result.join('\n');
-      if (newValue === oldValue) return false;
-      const oldCursor = editor.selectionStart;
-      let offset = 0, pos = 0;
-      for (let i = 0; i < lines.length && pos < oldCursor; i++) {
-        pos += lines[i].length;
-        if (doubledFlags[i] && pos < oldCursor) offset++;
-        if (i < lines.length - 1) pos += 1;
-      }
-      convertingLineBreaks = true;
-      editor.value = newValue;
-      editor.selectionStart = editor.selectionEnd = oldCursor + offset;
-      if (previewMode === 'source') {
-        previewSource.value = newValue;
-      }
-      convertingLineBreaks = false;
-      return true;
+    for (const el of [editor, previewSource]) {
+      const update = () => commitDraft(el.value, draft.filename, 'typing', previewMode === 'preview');
+      el.addEventListener('compositionend', update);
+      el.addEventListener('input', event => {
+        if (!event.isComposing) update();
+      });
     }
-
-    // 纯函数版本：不修改编辑器，仅返回转换后的字符串（供导出使用）
-    function convertSoftBreaksForExport(text) {
-      const lines = text.split('\n');
-      const isTableRow = (line) => /^\s*\|.*\|\s*$/.test(line);
-      const result = [];
-      for (let i = 0; i < lines.length; i++) {
-        result.push(lines[i]);
-        if (i === lines.length - 1) continue;
-        if (lines[i] === '' || lines[i + 1] === '') continue;
-        if (isTableRow(lines[i]) && isTableRow(lines[i + 1])) continue;
-        result.push('');
-      }
-      return result.join('\n');
-    }
-
-    // 事件监听
-    editor.addEventListener('input', () => {
-      convertSoftBreaksToHardBreaks();
-      clearTimeout(historyTimer);
-      historyTimer = setTimeout(recordHistory, 400);
-      updatePreview();
-      updateCount();
-      autoSave();
-    });
-    previewSource.addEventListener('input', () => {
-      editor.value = previewSource.value;
-      clearTimeout(historyTimer);
-      historyTimer = setTimeout(recordHistory, 400);
-      updateCount();
-      autoSave();
-    });
-    filenameInput.addEventListener('input', autoSave);
-
-    editor.addEventListener('paste', () => {
-      setTimeout(() => {
-        convertSoftBreaksToHardBreaks();
-      }, 0);
+    filenameInput.addEventListener('input', () => {
+      const name = filenameInput.value;
+      commitDraft(draft.text, name ? name + '.md' : '', 'typing', false);
     });
 
     // 拖放文件打开
@@ -3511,6 +4508,7 @@ ${'</scr' + 'ipt>'}
 
     document.addEventListener('dragenter', (e) => {
       e.preventDefault();
+      if (!canEditDraft()) return;
       dragCounter++;
       showDropOverlay();
     });
@@ -3531,12 +4529,13 @@ ${'</scr' + 'ipt>'}
       e.preventDefault();
       dragCounter = 0;
       hideDropOverlay();
+      if (!canEditDraft()) return;
       const files = e.dataTransfer.files;
       if (!files.length) return;
       const file = files[0];
       const ext = file.name.split('.').pop().toLowerCase();
 
-      const allowedText = ['md', 'markdown', 'txt'];
+      const allowedText = ['md', 'markdown', 'txt', 'zip'];
       if (allowedText.includes(ext)) {
         loadFile(file);
         return;
@@ -3547,12 +4546,7 @@ ${'</scr' + 'ipt>'}
           showToast(t('toastImageTooLarge'));
           return;
         }
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          insertImageMarkdown(file.name, ev.target.result);
-          showToast(t('toastImageInserted'));
-        };
-        reader.readAsDataURL(file);
+        void insertLocalPicture(file.name, file);
         return;
       }
 
@@ -3561,6 +4555,9 @@ ${'</scr' + 'ipt>'}
 
     // 点击外部关闭下拉菜单
     document.addEventListener('click', (e) => {
+      for (const dropdown of editorFormatDropdowns) {
+        if (!dropdown.contains(e.target)) dropdown.querySelector('.editor-format-menu').classList.remove('show');
+      }
       const exportDropdown = document.getElementById('export-dropdown');
       if (exportDropdown && !exportDropdown.contains(e.target)) {
         closeExportMenu();
@@ -3589,6 +4586,18 @@ ${'</scr' + 'ipt>'}
 
     // 快捷键
     function handleEditorKeydown(e) {
+      if (!canEditDraft()) return;
+      if (e.key === 'Escape') {
+        allowTabExit = true;
+        return;
+      }
+      const exit = allowTabExit;
+      allowTabExit = false;
+      if (e.isComposing) return;
+      if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && continueFormattedList(e.target)) {
+        e.preventDefault();
+        return;
+      }
       if (e.ctrlKey || e.metaKey) {
         if (e.key === 's') {
           e.preventDefault();
@@ -3596,7 +4605,7 @@ ${'</scr' + 'ipt>'}
         } else if (e.key === 'z' && !e.shiftKey) {
           e.preventDefault();
           undo();
-        } else if (e.key === 'y' || (e.key === 'z' && e.shiftKey)) {
+        } else if (e.key === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey)) {
           e.preventDefault();
           redo();
         } else if (e.key === 'b') {
@@ -3623,15 +4632,14 @@ ${'</scr' + 'ipt>'}
         }
       }
       // Tab 缩进
-      if (e.key === 'Tab') {
+      if (e.key === 'Tab' && !exit && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
         e.preventDefault();
         const el = getActiveEditor();
         const start = el.selectionStart;
         const end = el.selectionEnd;
+        pushHistory();
         el.setRangeText('    ', start, end, 'end');
-        syncEditorFromActive();
-        updatePreview();
-        updateCount();
+        commitEditor(el);
       }
     }
     editor.addEventListener('keydown', handleEditorKeydown);
@@ -3642,6 +4650,7 @@ ${'</scr' + 'ipt>'}
   </script>
 
   <!-- 导出图片隐藏舞台 -->
+  <div id="pdf-document"></div>
   <div id="export-image-stage" class="export-image-stage" aria-hidden="true">
     <div id="export-image-content"></div>
   </div>

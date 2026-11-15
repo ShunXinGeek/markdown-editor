@@ -1,0 +1,302 @@
+{
+  "marked.umd.js": {
+    "url": "https://cdn.jsdelivr.net/npm/marked@18.2.0/lib/marked.umd.js",
+    "integrity": "sha384-DDYDxilZ1LlqPSbaRHlrwh12h+3fUewuQj7HjscrZIWt5bGyQ+n0DHtIoZE3i3zU"
+  },
+  "purify.min.js": {
+    "url": "https://cdn.jsdelivr.net/npm/dompurify@3.4.18/dist/purify.min.js",
+    "integrity": "sha384-lkArbWjiZKuE+bzKbj1vOEF7DKYBDNvgwZMCt5OH8bdRB92zpzyNska9Q/XKPHQD"
+  },
+  "marked.LICENSE": {
+    "url": "https://cdn.jsdelivr.net/npm/marked@18.2.0/LICENSE",
+    "integrity": "sha384-61EZB/aHzoKVT71zYfgKtxFiu+RWPSi9UH34kVJPMyzaTcFdbvH0liFiUwpiBNqY"
+  },
+  "dompurify.LICENSE": {
+    "url": "https://cdn.jsdelivr.net/npm/dompurify@3.4.18/LICENSE",
+    "integrity": "sha384-II9e1ieUDl5AxyiVq3/FflTua1Sr0kMJ25e6imG7rXg7SiAsA2VemsvEqVsLqM7/"
+  },
+  "katex.css": {
+    "url": "https://cdn.jsdelivr.net/npm/katex@0.19.1/dist/katex.min.css",
+    "integrity": "sha384-WwGtaC6ywCHxA5cstpj/3+xIZvTez8dq2IcBQaXRkenHZ7FVVq1ZROtURwfbtTlG",
+    "offline": "offline/katex.min.css"
+  },
+  "katex": {
+    "url": "https://cdn.jsdelivr.net/npm/katex@0.19.1/dist/katex.min.js",
+    "integrity": "sha384-a1WQdjRj162i159OYq041X6I4K8NenkrI09LlPmiHg0YOb7CR+wJOraXwK9abpnE",
+    "offline": "offline/katex.min.js"
+  },
+  "math": {
+    "url": "https://cdn.jsdelivr.net/npm/katex@0.19.1/dist/contrib/auto-render.min.js",
+    "integrity": "sha384-bjyGPfbij8/NDKJhSGZNP/khQVgtHUE5exjm4Ydllo42FwIgYsdLO2lXGmRBf5Mz",
+    "offline": "offline/auto-render.min.js"
+  },
+  "mermaid": {
+    "url": "https://cdn.jsdelivr.net/npm/mermaid@10.9.8/dist/mermaid.min.js",
+    "integrity": "sha384-N3QqR/7q+xm3BGX+CBbNI8AUmRRqcsDzToy+0z1NLDI0QmTKW8zvwLvqulJgk3dP",
+    "offline": "offline/mermaid.min.js"
+  },
+  "docx": {
+    "url": "https://cdn.jsdelivr.net/npm/docx@9.7.1/dist/index.iife.js",
+    "integrity": "sha384-9OH56uLhIvkZkwF0jWNlfpcK3gPuSy5DfEMNqKe156wCpkND+MDdtaRyd05kwpG0"
+  },
+  "png": {
+    "url": "https://cdn.jsdelivr.net/npm/dom-to-image-more@3.5.0/dist/dom-to-image-more.min.js",
+    "integrity": "sha384-0PEs9VXKn6x/atQ5H1woMo0cQQnIz11UdqMzjvkDj+U+vxY4xwwj9J+gsbvLNcL9"
+  },
+  "offline/katex.LICENSE": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-8/FKNbIH5mozwy+sV5pgpgutNbMMGyLRBrS03uW5zky5crMM84tQVBEjiOEkDuqL"
+  },
+  "offline/fonts/KaTeX_AMS-Regular.ttf": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-4HvaAg5sIo+ePC2KNUAHX4jdlj2ybM+9IydybFKNCWITmPi0cRigo/vlZerFfGmi"
+  },
+  "offline/fonts/KaTeX_AMS-Regular.woff": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-zzv6YlTIK2GVTGQkpvc0NSYe9dA7KZXEW2BvczWfxlIh461ItqQm6tLVCPwdqbIY"
+  },
+  "offline/fonts/KaTeX_AMS-Regular.woff2": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-PY9KakbvJJoGRFr9TsImY6e9PzVmMRFtphQ0xTPhQj7VgIR9nnPXP2nA4P49sNux"
+  },
+  "offline/fonts/KaTeX_Caligraphic-Bold.ttf": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-fk2geuLOgttbpdB5d/An1CnLBI+nr/OauHXIMjWgSrCq7zd9cAbNk0RPa0mvVewO"
+  },
+  "offline/fonts/KaTeX_Caligraphic-Bold.woff": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-ygS7CPHY5PC7fx0zaVMK1SjN7dDoFj/wXmgfn2uj079d7RBB4fZxFRWbkKVf41dH"
+  },
+  "offline/fonts/KaTeX_Caligraphic-Bold.woff2": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-GhFwF3Lk94gRRX3fKvK8qVRIaPRKBawaOWoLpTeJCC1rYaTrY7A8sjVjyaJCdvb0"
+  },
+  "offline/fonts/KaTeX_Caligraphic-Regular.ttf": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-P/mxa2P74e7Q/Nrraxf42MZR6BRDPj+6Y/8IK6gRZsP11tK3HCMWCjklTBZB/JTM"
+  },
+  "offline/fonts/KaTeX_Caligraphic-Regular.woff": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-elINKb/ePoYhbFIcBY07QsNMkfzB9swtlkO/R0l8HiKUUOoS9nvubtiGKXil1+rI"
+  },
+  "offline/fonts/KaTeX_Caligraphic-Regular.woff2": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-0LpsQdZ8FRkW+0vIhMl+kNMsgYPhTA7pbCJDt43k6AHTpq7dv67sLl+bIaMuOiON"
+  },
+  "offline/fonts/KaTeX_Fraktur-Bold.ttf": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-Zq+AdbMgMzJ0IJPXXIx3L2tAMHi23dEGbckSsEiXW5oGUHvrOyzHd93BmA+QCMxv"
+  },
+  "offline/fonts/KaTeX_Fraktur-Bold.woff": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-MLc8yubx1XSYPhZ+gHfqw7OEEtpYlctAwBpAbkGKj2sa6rHidJJrq/R4kz6EQdvm"
+  },
+  "offline/fonts/KaTeX_Fraktur-Bold.woff2": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-23N9yDc6628Shv+2pdeDIDYIXemJPKfZaANtneHGjhBoaxqeQsZQFBRLj+0/drG9"
+  },
+  "offline/fonts/KaTeX_Fraktur-Regular.ttf": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-blyz/LtaFRdrehvymFg77DpI8i7KP11WnKs7brnbFhPgN2yghQrebswuoH3JW4Cm"
+  },
+  "offline/fonts/KaTeX_Fraktur-Regular.woff": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-JvvjekoYao3shCriOx820kL3YhUXXqJ+4H2SjePh/Gw5wmec0lZabTSSSGx80SyM"
+  },
+  "offline/fonts/KaTeX_Fraktur-Regular.woff2": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-N4B5/o3aSwC8EE7MIGghu2mB6cSIwYHNyiY9bhuVnozyLoHpYT+VEEjdYqJ+7mN7"
+  },
+  "offline/fonts/KaTeX_Main-Bold.ttf": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-H0sbiX9Nc+HBZQ/Hcnoo5XrAbQeXHHfm4vSjFnbcGFTc1RQNTTgAFou5eVy8YImZ"
+  },
+  "offline/fonts/KaTeX_Main-Bold.woff": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-t+Y0wR/F4tGlX27vTKgfEltk4j0Bj+LMZOlijbUQK7y5ZFlFM64IK1+XwdYAaOfr"
+  },
+  "offline/fonts/KaTeX_Main-Bold.woff2": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-MnzwPa3V5+Sly78huHTxfNszB+vQQmvhX4O4+m3UZ7LzQoA9wxEhsgxQsvW1y8dV"
+  },
+  "offline/fonts/KaTeX_Main-BoldItalic.ttf": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-kHQQR+DfeO06KIwEQaObiQKQmA2AE2xgdK4WuLCevcqv2wM5lo5Q9+uBO58b2nhw"
+  },
+  "offline/fonts/KaTeX_Main-BoldItalic.woff": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-jcZZbICEiFyNfyCr//GnL9SLbL0kfFYSIkJMFwIV7nsXKZVQPTz4EfiuFQdenBWl"
+  },
+  "offline/fonts/KaTeX_Main-BoldItalic.woff2": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-XtHiL6YLLShFl6oq2ZOcqTQBsloU+AvJDaGE7Xz/76bt4BWZuJn8tsj7dHnKndKi"
+  },
+  "offline/fonts/KaTeX_Main-Italic.ttf": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-LqXfLspWnja5UgG70Sk9wInrBX6NYvn8B3Mp0io4DvrRxMC+gH3izBOKqBWTs3fD"
+  },
+  "offline/fonts/KaTeX_Main-Italic.woff": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-TM7Mvm4ASc5Ybmy581bes8AGl19eGiJcokfFUWB9daQDMsjiGgZN1PRpVSIYiDMh"
+  },
+  "offline/fonts/KaTeX_Main-Italic.woff2": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-pZ+saBD2/qiUjsKqk1z1NqixWQMZGxYCRcit0Dqfscp5Mj2xUX8bxMm8iKOYsAsQ"
+  },
+  "offline/fonts/KaTeX_Main-Regular.ttf": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-PXJWVi0kXWCuY/H/40C3LSgJgcbPJAC0AkGhL14lwslD/j9LPNhvN7xTZORmE7t4"
+  },
+  "offline/fonts/KaTeX_Main-Regular.woff": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-Q0HJ9A5ESTfdxrLfe5lAb04L9A0vY/5o4NWd0G5PJGr2sEMzXuhz2Iac62660prU"
+  },
+  "offline/fonts/KaTeX_Main-Regular.woff2": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-K4rU/m6R4ygdFA2s4iphVuNOm4ksiQlo7BPut2DKbuGQFsmOTsh1vie2QdS8+qD/"
+  },
+  "offline/fonts/KaTeX_Math-BoldItalic.ttf": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-SEMzanhxS5ILZ7gKz61N1o1JDyHx1I35pHN5XajDPn4exg/FykPSvxRQfQg825P9"
+  },
+  "offline/fonts/KaTeX_Math-BoldItalic.woff": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-fwMc9fmQOR2gr8la3It1u0k2bDs8lIc7nGHNGHEsyHSDzOw+nV5A4TGCQilm96dn"
+  },
+  "offline/fonts/KaTeX_Math-BoldItalic.woff2": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-/bG/IuB65SsDidFgz28e7vwT1pxHih+EkPgQpjqmDVtOaSsPi/CXI7uT4nJnozAI"
+  },
+  "offline/fonts/KaTeX_Math-Italic.ttf": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-ALJuUcghT4AT8JnHQZ3It3fwBT4S9M19DpikJ94E2zoWlOZDMcbME/uCPQhIjh6e"
+  },
+  "offline/fonts/KaTeX_Math-Italic.woff": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-uC2uQSWvpuK1FIJeSC20ULptMi4NYGjmEgcIg1hjqCZK8THdvh/Z1Jdqz0fhkeah"
+  },
+  "offline/fonts/KaTeX_Math-Italic.woff2": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-ahAgpD3waV7F+QiHuM0WaQnVF/FMS0RXhS0dsThbGBuwv3RPHoxvT/8UGwzyOATH"
+  },
+  "offline/fonts/KaTeX_SansSerif-Bold.ttf": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-GSLHS3JbC4uCKSDvfXaA2C+IQQ4pKOmCdLkka6sQGqifl39+vZaPbNnwt5gxYYAt"
+  },
+  "offline/fonts/KaTeX_SansSerif-Bold.woff": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-4s2634eUcPzgWS4k0TflD0rpBwCU+kGlAxD6B0NnduqvBJSKWRjprGAiShUvez+W"
+  },
+  "offline/fonts/KaTeX_SansSerif-Bold.woff2": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-FWRmzdMUcxpbgWzOqA1THk/7QOuMshS6cTUeprW3TVnzjVrGnO9oCvWhE9lEwgGX"
+  },
+  "offline/fonts/KaTeX_SansSerif-Italic.ttf": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-TMYgwDtAAwpo33rwGJEFhtE8uvfFJngvVP3zuCF5blSX1WisrycpAdHWL+tpclzL"
+  },
+  "offline/fonts/KaTeX_SansSerif-Italic.woff": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-8kOHfXeePvROApUzB1rq84cjeOxKWPXE2J7U6fd7bORfN11ywltyXpfFblsUrdwS"
+  },
+  "offline/fonts/KaTeX_SansSerif-Italic.woff2": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-cIAn4buHZvRkXL5LFuK8pAPVzxv0niY78zTOBRHvRmalHZh9IYFAzZQPwNnHj05g"
+  },
+  "offline/fonts/KaTeX_SansSerif-Regular.ttf": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-11xkyZ5gnrcUWPKj6q2+nQhL/c0nf5AnnaFIH+f1470KzzAt/aWT9wBekGQITe6C"
+  },
+  "offline/fonts/KaTeX_SansSerif-Regular.woff": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-KVbq0PpRXNs54ATT+soP/YPOvWTUEACw5S7F6ORCzcOW7Mu0kSjqkIX8ZsD72pDG"
+  },
+  "offline/fonts/KaTeX_SansSerif-Regular.woff2": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-hFb2fFUxKsM3r80syP3hRUPdmRjMS09eYDF7almTU926xWabYjc1wdbrC7CaV5N/"
+  },
+  "offline/fonts/KaTeX_Script-Regular.ttf": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-ajALH5GUriSRD/8mDWxqTIMgFVLgf8rD9AGtZMAjlZcRsxUlvLPZSMQ9GcZxbPfV"
+  },
+  "offline/fonts/KaTeX_Script-Regular.woff": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-pUJC0ZXLxAtUYrIsxUjUTz7n1DwvTokhYetolDJHTyfqdU3xxfqqZui3QZ6Bto63"
+  },
+  "offline/fonts/KaTeX_Script-Regular.woff2": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-A6AdZ/mywRJao07EiGdwk4swWZyx+X1pi9aYMAdEYNUcIzbZzbrOlEnIBFn2tUvI"
+  },
+  "offline/fonts/KaTeX_Size1-Regular.ttf": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-y99IQHoTIyDGDLbbj79IZyHIqkOAUOpY1dbZryOI14DPIuvBTdpaCz9XqiHynOC8"
+  },
+  "offline/fonts/KaTeX_Size1-Regular.woff": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-gbBwLw2kvlHUO0ewbTJLdfR6X2Z5UoY6ZMzQk0vtg9i1xdYy3NJXvcxTz0u70DbZ"
+  },
+  "offline/fonts/KaTeX_Size1-Regular.woff2": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-vXXP3yBdT6+htUbz5gNLFqA/PE6AUmW++GDGZTnxOaHX2IFPIG1ie1qo3Ra6QXHy"
+  },
+  "offline/fonts/KaTeX_Size2-Regular.ttf": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-Wt0vYQnaX7rcb51P4F5px/+x8Cn3HFgwlmtx8FWsGRDbYXd7EcC9KUVWxDhLaNOg"
+  },
+  "offline/fonts/KaTeX_Size2-Regular.woff": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-S5AWjEM+Gmynga7cIAH6FXyOCt9oZLQUcpDaAZQBUgmK8k/NjYi/zpFNI0ppFl5o"
+  },
+  "offline/fonts/KaTeX_Size2-Regular.woff2": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-hCKAtKJzh4FhbOKEWInGgZoaS+sek0VFv7B866K51w2+KRZ5E6GJcpWQHbEPGPZz"
+  },
+  "offline/fonts/KaTeX_Size3-Regular.ttf": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-VyJXOyBcY0oe4+HGFMHAxG48AlwCGWr1g0Lq1JlQF9g9cnYJCySSkP2ud/QDUKUX"
+  },
+  "offline/fonts/KaTeX_Size3-Regular.woff": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-1Kd5GmITD5ei9Lfp7Jf7cJZ7E2u9yW3v5Jk2soolHaZTpMoyrua7M8pDEsy+MrlM"
+  },
+  "offline/fonts/KaTeX_Size3-Regular.woff2": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-dJES0vnXQqt06SV8gVM87Qsddvp2jjMCSjJ/jfADNWOP1feq4AqxkHeo/HZRTeya"
+  },
+  "offline/fonts/KaTeX_Size4-Regular.ttf": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-grrp+LAfKSVDhNpdqxjjWCF4icHm3LbJKxmSUOEBZ01SzpKprWDhzTngYNISjaN+"
+  },
+  "offline/fonts/KaTeX_Size4-Regular.woff": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-eXy7t8oYcVxr4uwLqZIgfQwoP3TU7rsvakBaPdny6nYMd2aht/lkD6p8dfunIFhj"
+  },
+  "offline/fonts/KaTeX_Size4-Regular.woff2": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-N0i7aW7M3/ioHKtRjR78Td+YATjbmUh0waMuUQOjBtv/bp4qTWd58I4etzZ71USy"
+  },
+  "offline/fonts/KaTeX_Typewriter-Regular.ttf": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-M1Mu9xT3GeBbVXdxoPNd26izfLmsiOvKjMFEG/jO/FdVVU9CPWN86D6y1YHV6ND6"
+  },
+  "offline/fonts/KaTeX_Typewriter-Regular.woff": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-QgC/S/s/0LtGE68JU5CbH+belZAEK/GG7h0vLciCKsllXeLvZpvlpiHbC61MSKsn"
+  },
+  "offline/fonts/KaTeX_Typewriter-Regular.woff2": {
+    "url": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+    "integrity": "sha384-EwGF1si4JOX2592vVUMe7CnToRBlq2lo+w+8tVWLrJW5ZiwBuSry7Ozgs+cGHjmB"
+  },
+  "offline/mermaid.LICENSE": {
+    "url": "https://registry.npmjs.org/mermaid/-/mermaid-10.9.8.tgz",
+    "integrity": "sha384-FCnkWxNcDqSeMyGV7DzhA4eWHiIbf8mNLMrlPTH+aJ/u2mGjKQSvwo10hu5IH0DC"
+  },
+  "fflate.js": {
+    "url": "https://registry.npmjs.org/fflate/-/fflate-0.8.2.tgz",
+    "integrity": "sha384-DT0Ls0mO7JmjTnT+oBuMhEJzYJO1zUqzuuMXNdnOmOQRIpN2BgSjvBV/j50NngIT"
+  },
+  "fflate.LICENSE": {
+    "url": "https://registry.npmjs.org/fflate/-/fflate-0.8.2.tgz",
+    "integrity": "sha384-HO7mPo60IMwWcRxP5AtntdcUzPBk/xicrj1nSbxjOKRVgREz/A2Z9XSCfp9VAmxB"
+  }
+}
