@@ -110,6 +110,7 @@ async function complete(endpoint, apiKey, model, inputs, signal) {
         { role: 'user', content: JSON.stringify(inputs) }
       ],
       response_format: { type: 'json_object' },
+      ...(new URL(endpoint).hostname === 'api.deepseek.com' ? { thinking: { type: 'disabled' } } : {}),
       max_tokens: Math.max(1024, inputs.candidates.length * 65 + 512)
     })
   });

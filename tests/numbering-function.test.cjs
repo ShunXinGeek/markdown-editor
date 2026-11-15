@@ -62,6 +62,7 @@ test('Netlify numbering calls the model and preserves cross-batch context', asyn
     assert.equal(options.headers.Authorization, 'Bearer fixture-key');
     assert.equal(payload.model, settings.model);
     assert.deepEqual(payload.response_format, { type: 'json_object' });
+    assert.deepEqual(payload.thinking, { type: 'disabled' });
     return upstream(inputs.previous ? plan : { items: [] });
   });
   const connected = await numbering(post({ ...settings, action: 'test' }));
@@ -87,6 +88,13 @@ test('Netlify numbering allows only the configured paths for custom model endpoi
   assert.equal((await status('https://models.example/v1/chat/completions')).status, 200);
   assert.equal((await status('https://text.example/openai/')).status, 200);
   assert.equal((await status('https://models.example/other')).status, 400);
+  t.mock.method(globalThis, 'fetch', async (_url, options) => {
+    assert.equal(Object.hasOwn(JSON.parse(options.body), 'thinking'), false);
+    return upstream({ items: [] });
+  });
+  const connected = await numbering(post({ ...settings, action: 'test',
+    connection: { ...connection, baseUrl: 'https://models.example/v1' } }));
+  assert.equal(connected.status, 200);
 });
 
 test('Netlify numbering reports rejected keys, malformed model results and timeouts', async t => {
