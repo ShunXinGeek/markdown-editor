@@ -46,4 +46,4 @@ Markdown 编辑器更新记录
 验证说明
 - 近五日记录按可核实证据编制；旧提交 5cab07a 之后到本窗口之前若有未保留的本地过程，当前 Git 历史无法按日重建。
 - 本次文档更新后运行 npm run test:release：11 项通过，0 项失败；覆盖 Chromium、Firefox 与 Python 代理。
-- Git 提交及推送结果由仓库历史记录核对。
+- 主同步提交 a7bca10 已推送至 GitHub 的 ShunXinGeek/markdown-editor master；远端提交号与本地一致，并从 GitHub 读取了本更新记录。
