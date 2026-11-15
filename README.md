@@ -196,6 +196,23 @@ Netlify 项目 `md-editor-app` 以 GitHub 仓库 `ShunXinGeek/markdown-editor` �
 
 ---
 
+## 整理编号
+
+本机编号服务使用兼容 Chat Completions 的模型接口。先构建并启动服务：
+
+```powershell
+python build-static.py
+python numbering-model.py
+```
+
+从终端显示的回环地址打开编辑器（默认 `http://127.0.0.1:8080/`）。在「模型设置」选择供应商，确认自动填入的 Base URL，输入 API Key 和支持 JSON 对象输出的模型 ID，再测试连接并保存。密钥仅保存在当前浏览器标签页的会话中。选「自定义」可填写其他兼容地址，回环地址上的模型可使用 HTTP 和空密钥。
+
+已有服务端配置可选「使用服务端默认配置」，继续使用 `MARKDOWN_NUMBERING_MODEL`、`MARKDOWN_NUMBERING_API_KEY` 和 `MARKDOWN_NUMBERING_API_URL`。此模式使用 JSON Schema 结构化输出，环境变量中的 API 地址填写完整的 `/chat/completions` 地址。
+
+可在「模型设置」的「编号选项」中编辑提示词。点击「整理编号」，确认发送范围后在右侧查看完整文档。展开「查看编号建议」可调整待确认项。「应用编号」把结果写入草稿并支持撤销。使用者可从「导出」菜单手动把右侧修正预览导出为 Word 或 PDF。
+
+编号整理每次接受最多 240 个候选项。模型分析只接收编号、结构线索和候选项的有限摘录。已有编号结果随草稿保存，编辑器可以在离线时继续渲染这些结果。
+
 ## 本地文档、离线包与导出
 
 - 「恢复点」保留最近 10 个版本，另有 16 MiB 的单文档历史预算。可预览、下载或恢复为新修订。出现标签页冲突时可下载两份内容。

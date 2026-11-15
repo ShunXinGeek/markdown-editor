@@ -43,7 +43,15 @@ Markdown 编辑器更新记录
 - .gitignore 增加本机 debug.log 与 .netlify/ 排除项，避免把调试输出或部署工具的本机状态上传。
 - 同步范围包括 README.md、i18n.js、markdown-editor.html、web-to-md-proxy.py、上述新增模块和构建脚本、根目录 Netlify 配置、vendor 运行资源、tests/、.github/、项目计划记录与文档。dist/、node_modules/、test-results/、debug.log 和 .netlify/ 留在本机。
 
+2026-11-15：整理编号功能与本次更新
+- 新增 editor-numbering.js：识别标题和列表的编号候选项，排除代码块等受保护内容；校验模型建议，生成可保存的 md-number:v1 标记，并在预览中显示编号。每次最多处理 240 个候选项。
+- 新增 numbering-model.py：从回环地址提供构建后的编辑器和同源 /api/numbering，支持浏览器提供的兼容模型设置或服务端环境变量默认配置；检查来源、请求字段和大小，并限制并发。模型只接收候选项结构与有限摘录，不接收完整正文。
+- 更新 markdown-editor.html、i18n.js、render-content.js、editor-list-format.js：加入模型设置、连接测试、提示词选项、整理编号的确认与逐项审查；在应用前仅更新右侧预览，应用后写入草稿并支持撤销。编号预览可通过大纲跳转，Word/PDF 可由用户手动导出修正预览。修正大纲行号解析与写作模板换行。
+- 更新 build-static.py 以发布 editor-numbering.js；README.md 增加本机服务使用说明；新增 Python 编号服务测试，并扩展浏览器测试，覆盖模型设置、预览、导出和交互路径。
+- 更新 ARCHITECTURE.md 与本记录，说明新增模块、数据流、保存和导出边界。
+
 验证说明
 - 近五日记录按可核实证据编制；旧提交 5cab07a 之后到本窗口之前若有未保留的本地过程，当前 Git 历史无法按日重建。
 - 本次文档更新后运行 npm run test:release：11 项通过，0 项失败；覆盖 Chromium、Firefox 与 Python 代理。
+- 本次整理编号更新在非沙箱环境重新运行 npm run test:release：15 项通过、0 项失败；其中 Python unittest 7 项通过，浏览器覆盖 Chromium 和 Firefox。普通沙箱中 Firefox 启动崩溃、依赖 CDN 的导出超时；非沙箱复测全部通过。
 - 主同步提交 a7bca10 已推送至 GitHub 的 ShunXinGeek/markdown-editor master；远端提交号与本地一致，并从 GitHub 读取了本更新记录。

@@ -341,5 +341,5 @@ const editorListFormat = (() => {
   }
 
   return { styles, orderedMenu, bullets: Object.keys(bullets), font, fontHeader, validFont,
-    scan, normalize, restoreLists, css, sourcePrefix, paintImageMarkers };
+    row, scan, normalize, restoreLists, css, sourcePrefix, markerNumber, paintImageMarkers };
 })();

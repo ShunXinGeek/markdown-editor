@@ -10,7 +10,8 @@ import tempfile
 import zipfile
 
 ROOT = Path(__file__).resolve().parent
-FILES = ('markdown-editor.html', 'i18n.js', 'draft-storage.js', 'render-content.js', 'editor-list-format.js', 'editor-attachments.js', 'editor-workspace.js', 'LICENSE')
+FILES = ('markdown-editor.html', 'i18n.js', 'draft-storage.js', 'render-content.js', 'editor-list-format.js',
+         'editor-numbering.js', 'editor-attachments.js', 'editor-workspace.js', 'LICENSE')
 
 
 def digest(data, algorithm='sha384'):

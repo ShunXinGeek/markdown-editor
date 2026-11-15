@@ -5,6 +5,7 @@ const { spawnSync } = require('node:child_process');
 const { readFile, mkdtemp, rm } = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
+const { pathToFileURL } = require('node:url');
 const http = require('node:http');
 
 const output = path.join(process.cwd(), 'dist');
@@ -290,6 +291,286 @@ test('list presets, editable hierarchy and document fonts in Chromium', { timeou
   assert.equal((await exportListImage('decimal-parens')).equals(await exportListImage('upper-alpha')), false);
 });
 
+test('model settings explain how to start the service when the editor is opened as a file', { timeout: 30000 }, async t => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const url = pathToFileURL(path.join(process.cwd(), 'markdown-editor.html')).href;
+  const { page } = await launchPage(browser, url, true);
+  await page.setViewportSize({ width: 375, height: 550 });
+  await page.getByRole('button', { name: '模型设置', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: '模型设置' });
+  const status = dialog.getByRole('status');
+  await dialog.getByLabel('模型供应商').selectOption('deepseek');
+  await dialog.getByLabel('API Key').fill('fixture-key');
+  await dialog.getByLabel('模型名称').fill('fixture-model');
+  await dialog.getByRole('button', { name: '测试连接' }).click();
+  assert.match(await status.textContent(), /python numbering-model\.py/);
+  assert.equal(await status.evaluate(el => {
+    const rect = el.getBoundingClientRect();
+    return document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2) === el;
+  }), true);
+  await dialog.getByRole('button', { name: '保存', exact: true }).click();
+  assert.match(await status.textContent(), /python numbering-model\.py/);
+  assert.equal(await dialog.getByLabel('模型名称').inputValue(), 'fixture-model');
+  await page.keyboard.press('Escape');
+  await dialog.waitFor({ state: 'hidden' });
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.locator('#organize-numbering').click();
+  await page.locator('#toast.show').filter({ hasText: 'python numbering-model.py' }).waitFor();
+  assert.equal(await dialog.isVisible(), false);
+});
+
+test('model settings fill provider URLs, save and use the selected model', { timeout: 30000 }, async t => {
+  const server = await serve();
+  t.after(server.close);
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { context, page } = await launchPage(browser, server.url, true);
+  const open = page.getByRole('button', { name: '模型设置', exact: true });
+  const dialog = page.getByRole('dialog', { name: '模型设置' });
+  const provider = dialog.getByLabel('模型供应商');
+  const key = dialog.getByLabel('API Key');
+  const baseUrl = dialog.getByLabel('Base URL');
+  const model = dialog.getByLabel('模型名称');
+  const status = dialog.getByRole('status');
+  const save = dialog.getByRole('button', { name: '保存', exact: true });
+  await page.setViewportSize({ width: 375, height: 667 });
+  await open.click();
+  assert.equal(await provider.evaluate(el => el === document.activeElement), true);
+  await provider.selectOption('deepseek');
+  assert.equal(await baseUrl.inputValue(), 'https://api.deepseek.com');
+  assert.equal(await key.getAttribute('type'), 'password');
+  await key.fill('deepseek-fixture-key');
+  await model.fill('fixture-deepseek');
+  await provider.selectOption('dashscope');
+  assert.equal(await baseUrl.inputValue(), 'https://dashscope.aliyuncs.com/compatible-mode/v1');
+  assert.equal(await key.inputValue(), '');
+  assert.equal(await model.inputValue(), '');
+  await model.fill('fixture-qwen');
+  await save.click();
+  assert.match(await status.textContent(), /API Key/);
+  await key.fill('fixture-key');
+  await baseUrl.fill('http://provider.example/v1');
+  await save.click();
+  assert.match(await status.textContent(), /HTTPS/);
+  await baseUrl.fill('https://provider.example/custom/v1');
+
+  const testConnection = dialog.getByRole('button', { name: '测试连接' });
+  await page.route('**/api/numbering', route => route.fulfill({ status: 501 }));
+  await testConnection.click();
+  await status.filter({ hasText: 'python numbering-model.py' }).waitFor();
+  await page.unroute('**/api/numbering');
+
+  const actions = [];
+  await page.route('**/api/numbering', async route => {
+    const payload = route.request().postDataJSON();
+    actions.push(payload.action);
+    assert.equal(payload.model, 'fixture-qwen');
+    assert.deepEqual(payload.connection, { baseUrl: 'https://provider.example/custom/v1', apiKey: 'fixture-key' });
+    if (payload.action === 'analyze') {
+      const id = payload.candidates[0].id;
+      await route.fulfill({ json: { items: [{ id, kind: 'heading', level: 1, group: id,
+        style: 'outline', start: 0, review: false }] } });
+    } else {
+      await route.fulfill({ json: { provider: 'provider.example', model: payload.model } });
+    }
+  });
+  await testConnection.click();
+  await status.filter({ hasText: '连接成功' }).waitFor();
+  await save.click();
+  await dialog.waitFor({ state: 'hidden' });
+  await page.locator('#toast.show').filter({ hasText: '模型设置已保存' }).waitFor();
+  assert.equal(await page.evaluate(() => localStorage.getItem('md_editor_numbering_settings').includes('fixture-key')), false);
+  await page.reload();
+  await page.waitForFunction(() => ready);
+  await open.click();
+  assert.equal(await provider.inputValue(), 'dashscope');
+  assert.equal(await baseUrl.inputValue(), 'https://provider.example/custom/v1');
+  assert.equal(await model.inputValue(), 'fixture-qwen');
+  assert.equal(await key.inputValue(), 'fixture-key');
+  await page.evaluate(() => {
+    const setItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (name, value) {
+      if (this === localStorage && name === 'md_editor_numbering_settings') {
+        throw new DOMException('Storage quota exceeded', 'QuotaExceededError');
+      }
+      return setItem.call(this, name, value);
+    };
+  });
+  await key.fill('unsaved-key');
+  await save.click();
+  assert.match(await status.textContent(), /无法保存模型设置/);
+  assert.equal(await key.inputValue(), 'unsaved-key');
+  await provider.selectOption('moonshot');
+  assert.equal(await baseUrl.inputValue(), 'https://api.moonshot.cn/v1');
+  await page.keyboard.press('Escape');
+  await dialog.waitFor({ state: 'hidden' });
+  assert.equal(await open.evaluate(el => el === document.activeElement), true);
+
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await edit(page, '# 9. Scope');
+  await page.locator('#organize-numbering').click();
+  await page.locator('#preview [data-number-label]').waitFor();
+  assert.deepEqual(actions, ['test', 'status', 'analyze']);
+  const newTab = await context.newPage();
+  await newTab.goto(server.url);
+  await newTab.waitForFunction(() => ready);
+  await newTab.getByRole('button', { name: '模型设置', exact: true }).click();
+  assert.equal(await newTab.getByLabel('API Key').inputValue(), '');
+  assert.equal(await newTab.getByLabel('模型名称').inputValue(), 'fixture-qwen');
+});
+
+test('numbering results stay in the right preview and exports are manual', { timeout: 90000 }, async t => {
+  const server = await serve();
+  t.after(server.close);
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page } = await launchPage(browser, server.url);
+  const protectedContent = await page.evaluate(() => {
+    const original = '# 第三章範圍  \r\n\r\n\t10. code\r\n\r\n## 第十五條約定 **原文**\r\n\r\n' +
+      '依照第十五條，保留 \x60x = 2\x60、12.34 元及空格。  \r\n';
+    const candidates = editorNumbering.find(original);
+    const titles = candidates.map(candidate => candidate.body);
+    const choices = editorNumbering.decisions(candidates, { items: candidates.map((candidate, index) => ({
+      id: candidate.id, kind: 'heading', group: candidates[0].id, level: index + 1,
+      style: 'auto', start: 0, review: false
+    })) });
+    const result = editorNumbering.patch(original, candidates, choices, new Map());
+    return { titles, text: result.text, pending: result.preview.map(row => row.pending) };
+  });
+  assert.deepEqual(protectedContent.titles, ['範圍  ', '約定 **原文**']);
+  assert.deepEqual(protectedContent.pending, [false, true]);
+  assert.equal(protectedContent.text,
+    '# <!-- md-number:v1:h:g1:1:chapter:1 --> 範圍  \r\n\r\n\t10. code\r\n\r\n## 第十五條約定 **原文**\r\n\r\n' +
+    '依照第十五條，保留 \x60x = 2\x60、12.34 元及空格。  \r\n');
+  await page.locator('#organize-numbering').click();
+  await page.locator('#numbering-settings').waitFor();
+  await page.locator('#numbering-options summary').click();
+  const basePrompt = await page.locator('#numbering-prompt').inputValue();
+  await page.locator('#numbering-prompt').fill('temporary');
+  await page.locator('[onclick="restoreNumberingPrompt()"]').click();
+  assert.equal(await page.locator('#numbering-prompt').inputValue(), basePrompt);
+  await page.locator('#numbering-prompt').fill(basePrompt + '\nPrefer outline numbering for headings.');
+  const actions = [];
+  let delayResponse;
+  let notifyAnalysis;
+  let invalidResponse = false;
+  await page.route('**/api/numbering', async route => {
+    const payload = route.request().postDataJSON();
+    actions.push(payload.action);
+    if (payload.action !== 'analyze') {
+      assert.deepEqual(Object.keys(payload).sort(), ['action', 'model']);
+      await route.fulfill({ json: { provider: 'numbering.test', model: 'fixture-model' } });
+      return;
+    }
+    assert.match(payload.prompt, /Prefer outline numbering/);
+    assert.ok(!JSON.stringify(payload.candidates).includes('PRIVATE-CODE'));
+    assert.ok(!JSON.stringify(payload.candidates).includes('private.example'));
+    const id = excerpt => payload.candidates.find(row => row.excerpt.includes(excerpt))?.id;
+    const entry = (name, kind, level, anchor, style, review = false) => ({
+      id: id(name), kind, level, group: id(anchor), style, start: 0, review
+    });
+    const items = [
+      entry('Scope', 'heading', 1, 'Scope', 'outline'),
+      entry('Details', 'heading', 2, 'Scope', 'outline'),
+      entry('First', 'ordered', 1, 'First', 'decimal-dot'),
+      entry('Second', 'ordered', 1, 'First', 'decimal-dot'),
+      entry('Third', 'ordered', 1, 'First', 'decimal-dot'),
+      entry('Bullet', 'bullet', 1, 'Bullet', 'diamond'),
+      entry('Nested', 'bullet', 2, 'Bullet', 'circle'),
+      entry('Notes', 'heading', 1, 'Scope', 'outline'),
+      entry('Next', 'heading', 2, 'Scope', 'outline'),
+      entry('Compound', 'ordered', 1, 'Compound', 'outline', true)
+    ];
+    if (delayResponse) {
+      notifyAnalysis();
+      await delayResponse;
+    }
+    await route.fulfill({ json: { items: invalidResponse ? [{ ...items[0], rewrittenText: 'forbidden' }] : items } }).catch(() => {});
+  });
+  await page.locator('#numbering-test').click();
+  await page.waitForFunction(() => document.getElementById('numbering-connection-status').textContent.includes('fixture-model'));
+  await page.locator('[onclick="saveNumberingSettings()"]').click();
+  const original = '# 7. **Scope**\n\n## 7.4 Details\n\n3. First *unchanged*\n4. Second\n\n' +
+    '正文金额 12.34 元，保留 [原链接](https://private.example/a)。\n\n' +
+    '1. Third\n\n- Bullet\n   - Nested\n\n# 12. Notes\n\n## 12.3 Next\n\n' +
+    '1.2.3 Compound\n\n```text\n2. PRIVATE-CODE\n```\n';
+  await edit(page, original);
+  await page.evaluate(() => { window.print = () => { window.printCount = (window.printCount || 0) + 1; }; });
+  let downloads = 0;
+  page.on('download', () => downloads++);
+  await page.locator('#organize-numbering').click();
+  await page.waitForFunction(() => document.querySelector('#preview h2')?.dataset.numberLabel === '1.1');
+  assert.equal(await page.locator('#editor').inputValue(), original);
+  assert.equal(downloads, 0);
+  assert.equal(await page.evaluate(() => window.printCount || 0), 0);
+  const labels = await page.locator('#preview [data-number-label]').evaluateAll(nodes => nodes.map(node => node.dataset.numberLabel));
+  assert.deepEqual(labels, ['1', '1.1', '1.', '2.', '3.', '◆', '○', '2', '2.1']);
+  assert.equal(await page.locator('#preview em').textContent(), 'unchanged');
+  assert.equal(await page.locator('#preview a').getAttribute('href'), 'https://private.example/a');
+  assert.match(await page.locator('#preview pre').textContent(), /PRIVATE-CODE/);
+  assert.match(await page.locator('#numbering-status').textContent(), /1.*待确认/);
+  const compoundId = original.split('\n').findIndex(line => line.startsWith('1.2.3')) + 1;
+  await page.locator('#numbering-changes summary').click();
+  await page.locator('#numbering-choice-' + compoundId).selectOption('use');
+  await page.waitForFunction(() => [...document.querySelectorAll('#preview li[data-number-label]')]
+    .some(li => li.textContent === 'Compound'));
+  await page.locator('#numbering-choice-' + compoundId).selectOption('keep');
+
+  const exportAs = async key => {
+    await page.locator('#export-dropdown > button').click();
+    await page.locator('#export-menu [data-i18n="' + key + '"]').click();
+  };
+  const output = await download(page, () => exportAs('exportWord'));
+  const files = require('../vendor/fflate.js').unzipSync(output.bytes);
+  const xml = name => Buffer.from(files['word/' + name + '.xml']).toString();
+  assert.match(xml('numbering'), /<w:lvlText w:val="%1\.%2"\/>/);
+  assert.match(xml('numbering'), /<w:pStyle w:val="Heading2"\/>/);
+  assert.doesNotMatch(xml('document'), /7\.4 Details|12\.3 Next/);
+  const byText = text => {
+    const paragraph = [...xml('document').matchAll(/<w:p>.*?<\/w:p>/gs)].find(match => match[0].includes(text))?.[0];
+    assert.ok(paragraph, 'Expected Word paragraph containing ' + text);
+    return { style: paragraph.match(/<w:pStyle w:val="([^"]+)"/)?.[1], numId: paragraph.match(/<w:numId w:val="(\d+)"/)?.[1] };
+  };
+  assert.equal(byText('Details').style, 'Heading2');
+  assert.ok(byText('Details').numId);
+  assert.equal(byText('Details').numId, byText('Next').numId);
+  assert.equal(byText('First').numId, byText('Third').numId);
+  assert.ok(byText('First').numId);
+  assert.ok(byText('Bullet').numId);
+  await exportAs('exportPdf');
+  await page.waitForFunction(() => window.printCount === 1);
+  assert.deepEqual(await page.locator('#pdf-document [data-number-label]').evaluateAll(nodes => nodes.map(node => node.dataset.numberLabel)), labels);
+  assert.equal((await page.pdf()).subarray(0, 5).toString(), '%PDF-');
+  await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
+  assert.equal(await page.locator('#editor').inputValue(), original);
+  assert.deepEqual(actions, ['test', 'status', 'analyze']);
+
+  await page.locator('#numbering-apply').click();
+  const applied = await page.locator('#editor').inputValue();
+  assert.match(applied, /md-number:v1/);
+  assert.match(applied, /正文金额 12\.34 元，保留 \[原链接\]\(https:\/\/private.example\/a\)。/);
+  assert.equal(await page.locator('#numbering-review').isVisible(), false);
+  await page.locator('[onclick="undo()"]').click();
+  assert.equal(await page.locator('#editor').inputValue(), original);
+
+  invalidResponse = true;
+  await page.locator('#organize-numbering').click();
+  await page.waitForFunction(() => document.getElementById('toast').textContent.includes('结构无效'));
+  assert.equal(await page.locator('#editor').inputValue(), original);
+  invalidResponse = false;
+  let finish;
+  delayResponse = new Promise(resolve => { finish = resolve; });
+  const inFlight = new Promise(resolve => { notifyAnalysis = resolve; });
+  await page.locator('#organize-numbering').click();
+  await inFlight;
+  await edit(page, original + '\n保留刚刚添加的正文。');
+  finish();
+  assert.equal(await page.locator('#numbering-review').isVisible(), false);
+  assert.match(await page.locator('#preview').textContent(), /保留刚刚添加的正文/);
+  assert.equal(downloads, 1);
+});
+
 test('offline archive and attachment round-trip', { timeout: 60000 }, async t => {
   const server = await serve();
   t.after(server.close);
@@ -445,6 +726,90 @@ test('large preview scheduling, export snapshot, and page layout', { timeout: 60
 
 
 
+test('heading outline follows numbering preview, review, apply and undo', { timeout: 45000 }, async t => {
+  const server = await serve();
+  t.after(server.close);
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page } = await launchPage(browser, server.url, true);
+  const outline = page.locator('#outline-button');
+  const source = page.getByLabel('大纲来源');
+  const list = page.locator('#outline-list');
+  const jump = page.locator('#outline-jump');
+  const editor = page.locator('#editor');
+  const entries = () => list.locator('option').evaluateAll(options => options.map(option => option.textContent.trim()));
+
+  await page.locator('#organize-numbering').click();
+  await page.locator('[onclick="saveNumberingSettings()"]').click();
+  let finishAnalysis;
+  let startAnalysis;
+  const started = new Promise(resolve => { startAnalysis = resolve; });
+  const analysis = new Promise(resolve => { finishAnalysis = resolve; });
+  await page.route('**/api/numbering', async route => {
+    const payload = route.request().postDataJSON();
+    if (payload.action !== 'analyze') {
+      await route.fulfill({ json: { provider: 'numbering.test', model: 'fixture-model' } });
+      return;
+    }
+    startAnalysis();
+    await analysis;
+    const id = title => payload.candidates.find(row => row.excerpt === title).id;
+    const heading = (title, level) => ({
+      id: id(title), kind: 'heading', level, group: id('Start'), style: 'outline', start: 0, review: false
+    });
+    await route.fulfill({ json: { items: [heading('Start', 1), heading('Target', 2), heading('Candidate', 2)] } });
+  });
+  const original = '# 9. Start\n\n' + 'Wrapped content '.repeat(600) +
+    '\n\n<h2>HTML heading</h2>\n\n## 9.4 Target\n\n7. Candidate\n\n' + 'More content '.repeat(500);
+  await edit(page, original);
+  await page.locator('#organize-numbering').click();
+  await started;
+  await outline.click();
+  assert.equal(await source.inputValue(), 'original');
+  assert.equal(await source.isDisabled(), true);
+  assert.deepEqual(await entries(), ['9. Start · 1', '9.4 Target · 7']);
+  finishAnalysis();
+  await page.waitForFunction(() => document.querySelector('#outline-source').value === 'preview');
+  assert.deepEqual((await entries()).slice(0, 3), ['1 Start', 'HTML heading', '1.1 Target']);
+  await list.selectOption({ label: '   1.1 Target' });
+  await jump.click();
+  await page.waitForFunction(() => {
+    const pane = document.querySelector('#preview');
+    const heading = pane.querySelector('h2[data-number-label="1.1"]');
+    return pane.scrollTop > 0 && Math.abs(heading.getBoundingClientRect().top - pane.getBoundingClientRect().top - 12) < 2;
+  });
+  assert.equal(await editor.inputValue(), original);
+
+  await page.locator('#numbering-changes summary').click();
+  const candidateLine = original.split('\n').findIndex(line => line.startsWith('7. Candidate')) + 1;
+  const candidate = page.locator('#numbering-choice-' + candidateLine);
+  await candidate.selectOption('heading');
+  await page.locator('#editor-collapse-btn').click();
+  assert.equal(await outline.isEnabled(), true);
+  await outline.click();
+  assert.equal(await source.inputValue(), 'preview');
+  assert.ok((await entries()).some(entry => entry.endsWith(' Candidate')));
+  await source.selectOption('original');
+  assert.deepEqual(await entries(), ['9. Start · 1', '9.4 Target · 7']);
+  await list.selectOption('1');
+  await list.press('Enter');
+  assert.equal(await editor.isVisible(), true);
+  assert.equal(await editor.evaluate(el => el.selectionStart), original.indexOf('## 9.4 Target'));
+  assert.ok(await editor.evaluate(el => el.scrollTop > 100));
+  assert.equal(await editor.inputValue(), original);
+
+  await page.locator('#numbering-apply').click();
+  await outline.click();
+  assert.equal(await source.inputValue(), 'original');
+  assert.equal(await source.isDisabled(), true);
+  assert.ok((await entries()).includes('1.1 Target · 7'));
+  assert.ok((await entries()).some(entry => entry.endsWith(' Candidate · ' + candidateLine)));
+  await page.keyboard.press('Escape');
+  await page.locator('[onclick="undo()"]').click();
+  await outline.click();
+  assert.deepEqual(await entries(), ['9. Start · 1', '9.4 Target · 7']);
+});
+
 test('workspace and writing tools in Chromium and Firefox', { timeout: 90000 }, async t => {
   const server = await serve();
   t.after(server.close);
@@ -457,6 +822,16 @@ test('workspace and writing tools in Chromium and Firefox', { timeout: 90000 }, 
       const text = '# 中文\n\n## Repeat\n\n~~~md\n# Ignored\n~~~\n\n## Repeat\n\nSetext\n------\n\nalpha alpha';
       await edit(page, text);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), 390);
+      const toolbar = page.locator('.editor-toolbar');
+      const controls = toolbar.locator('[onclick="undo()"], #outline-button, [onclick="openTemplates()"]');
+      assert.equal(await controls.count(), 3);
+      assert.ok(await controls.evaluateAll(buttons => {
+        const centers = buttons.map(button => {
+          const { top, height } = button.getBoundingClientRect();
+          return top + height / 2;
+        });
+        return Math.max(...centers) - Math.min(...centers) < 1;
+      }));
       await page.locator('[onclick="openOutline()"]').focus();
       await page.keyboard.press('Enter');
       assert.equal(await page.locator('#outline-list option').count(), 4);
@@ -465,14 +840,20 @@ test('workspace and writing tools in Chromium and Firefox', { timeout: 90000 }, 
       await page.keyboard.press('Enter');
       assert.equal(await page.locator('#editor').evaluate(el => el.selectionStart), text.lastIndexOf('## Repeat'));
       await page.locator('[onclick="openTemplates()"]').click();
+      assert.match(await page.locator('#template-content').inputValue(), /^# 项目名称\n\n## 简介/);
+      await page.locator('#template-list').selectOption('technical');
+      assert.match(await page.locator('#template-content').inputValue(), /^# 技术文档\n\n## 背景/);
       await page.locator('#template-list').selectOption('meeting');
       const preview = await page.locator('#template-content').inputValue();
-      assert.match(preview, /会议纪要/);
+      assert.equal(preview, '# 会议纪要\n\n## 议程\n\n## 决定\n\n## 行动事项\n\n');
       await page.keyboard.press('Escape');
       assert.equal(await page.evaluate(() => draft.text), text);
+      const selected = text.lastIndexOf('alpha');
+      await page.locator('#editor').evaluate((el, start) => el.setSelectionRange(start, start + 5), selected);
       await page.locator('[onclick="openTemplates()"]').click();
       await page.locator('#template-modal [data-i18n="insert"]').click();
-      assert.ok((await page.evaluate(() => draft.text)).includes(preview));
+      assert.equal(await page.locator('#editor').inputValue(), text.slice(0, selected) + '\n\n' + preview);
+      assert.equal(await page.locator('#preview h1').last().textContent(), '会议纪要');
       await page.evaluate(() => undo());
       assert.equal(await page.evaluate(() => draft.text), text);
 

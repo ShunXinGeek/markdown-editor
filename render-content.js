@@ -40,13 +40,16 @@ const markdownContent = (() => {
       })
     ).join('');
     const listNonce = 'md-list-token-' + nonce + '-';
-    const lists = editorListFormat.normalize(source, listNonce);
+    const numberNonce = 'md-number-token-' + nonce + '-';
+    const numbering = editorNumbering.annotate(source, numberNonce);
+    const lists = editorListFormat.normalize(numbering.source, listNonce);
     const html = marked.parse(lists.source, { gfm: true, breaks: true });
     container.append(DOMPurify.sanitize(html, {
       ALLOWED_TAGS: tags, ALLOWED_ATTR: attributes, ALLOW_DATA_ATTR: false,
       ALLOW_ARIA_ATTR: false, RETURN_DOM_FRAGMENT: true
     }));
     editorListFormat.restoreLists(container, listNonce, lists.rows);
+    editorNumbering.decorate(container, numberNonce, numbering.rows);
     const font = editorListFormat.font(text);
     if (font) container.style.fontFamily = '"' + font + '", sans-serif';
     for (const link of container.querySelectorAll('a[href],img[src]')) {
