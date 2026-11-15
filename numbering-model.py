@@ -17,6 +17,7 @@ API_KEY = re.compile(r'[!-~]{0,2048}')
 MAX_BODY = 192 * 1024
 MAX_RESPONSE = 1024 * 1024
 MAX_CANDIDATES = 240
+MAX_PREVIOUS = 6 + 9  # The active heading and list paths.
 ITEM_FIELDS = {
     'id': {'type': 'integer'},
     'kind': {'type': 'string', 'enum': ['heading', 'ordered', 'bullet', 'skip']},
@@ -45,6 +46,7 @@ EXAMPLE = {
     'prefix': '1. ', 'style': 'decimal-dot', 'value': 1,
     'priorGroup': '', 'priorLevel': 0, 'excerpt': 'Test heading',
 }
+PREVIOUS_EXAMPLE = {'id': 1, 'kind': 'heading', 'level': 1, 'group': 1, 'prefix': '', 'excerpt': ''}
 
 
 class ModelConfig:
@@ -68,8 +70,14 @@ class ModelConfig:
             if not self.path.endswith('/chat/completions'):
                 self.path += '/chat/completions'
 
-    def complete(self, model, prompt, candidates):
+    def complete(self, model, prompt, candidates, previous=()):
         system = SYSTEM
+        inputs = {'numbering_rules': prompt, 'candidates': candidates}
+        if previous:
+            inputs['previous'] = previous
+            system += ('\nprevious 是前几批已分析的标题和列表路径，仅供延续分组及判断层级。'
+                       '只返回 candidates 中的 id。同一编号序列应沿用 previous 里的 group 和层级关系。'
+                       '即使本批从子级开始，也应使用原 group，不要另起编号。独立序列仍以本批首项为 group。')
         if self.json_mode:
             system += '\n按以下 JSON Schema 输出：' + json.dumps(SCHEMA, ensure_ascii=False)
             system += '\n示例：{"items":[{"id":7,"kind":"heading","level":1,"group":7,"style":"outline","start":0,"review":false}]}'
@@ -77,8 +85,7 @@ class ModelConfig:
             'model': model,
             'messages': [
                 {'role': 'system', 'content': system},
-                {'role': 'user', 'content': json.dumps(
-                    {'numbering_rules': prompt, 'candidates': candidates}, ensure_ascii=False)},
+                {'role': 'user', 'content': json.dumps(inputs, ensure_ascii=False)},
             ],
             'response_format': {'type': 'json_object'} if self.json_mode else {'type': 'json_schema', 'json_schema': {
                 'name': 'numbering_plan', 'strict': True, 'schema': SCHEMA,
@@ -201,7 +208,7 @@ class Handler(SimpleHTTPRequestHandler):
                 raise ValueError()
             if not isinstance(model, str) or not MODEL_NAME.fullmatch(model) or action not in ('status', 'test', 'analyze'):
                 raise ValueError()
-            prompt, candidates = '', [EXAMPLE]
+            prompt, candidates, previous = '', [EXAMPLE], []
             if action == 'analyze':
                 prompt, candidates = payload.get('prompt'), payload.get('candidates')
                 if (not isinstance(prompt, str) or not 0 < len(prompt) <= 6000 or
@@ -212,8 +219,21 @@ class Handler(SimpleHTTPRequestHandler):
                             any(type(value) is not type(EXAMPLE[key]) or
                                 isinstance(value, str) and len(value) > 200 for key, value in candidate.items())):
                         raise ValueError()
-                if len({candidate['id'] for candidate in candidates}) != len(candidates):
+                candidate_ids = {candidate['id'] for candidate in candidates}
+                if len(candidate_ids) != len(candidates):
                     raise ValueError()
+                first_id = min(candidate_ids)
+                previous = payload.get('previous', [])
+                if not isinstance(previous, list) or len(previous) > MAX_PREVIOUS:
+                    raise ValueError()
+                for item in previous:
+                    if (not isinstance(item, dict) or item.keys() != PREVIOUS_EXAMPLE.keys() or
+                            any(type(value) is not type(PREVIOUS_EXAMPLE[key]) or
+                                isinstance(value, str) and len(value) > 200 for key, value in item.items()) or
+                            item['kind'] not in ('heading', 'ordered', 'bullet') or
+                            not 1 <= item['level'] <= (6 if item['kind'] == 'heading' else 9) or
+                            not 0 < item['group'] <= item['id'] < first_id):
+                        raise ValueError()
         except (ValueError, TimeoutError):
             self.json_response(400, {'error': 'Invalid numbering request'})
             return
@@ -225,7 +245,7 @@ class Handler(SimpleHTTPRequestHandler):
             self.json_response(503, {'error': 'Numbering service is busy'})
             return
         try:
-            plan = config.complete(model, prompt, candidates)
+            plan = config.complete(model, prompt, candidates, previous)
         except TimeoutError:
             self.json_response(504, {'error': 'Model request timed out'})
         except (OSError, http.client.HTTPException, ValueError, IndexError, KeyError, TypeError, AttributeError):

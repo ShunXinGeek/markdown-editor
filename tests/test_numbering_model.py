@@ -22,9 +22,12 @@ class NumberingServiceTest(unittest.TestCase):
             def do_POST(self):
                 request = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
                 test.upstream_requests.append((request, self.headers.get('Authorization')))
-                candidate = json.loads(request['messages'][1]['content'])['candidates'][0]
+                inputs = json.loads(request['messages'][1]['content'])
+                candidate = inputs['candidates'][0]
                 item = {'id': candidate['id'], 'kind': 'heading', 'level': 1, 'group': candidate['id'],
                         'style': 'outline', 'start': 0, 'review': False}
+                if inputs.get('previous'):
+                    item.update(group=inputs['previous'][0]['group'], level=candidate['headingLevel'])
                 if test.invalid_response:
                     item['excerpt'] = 'unexpected replacement'
                 data = json.dumps({'choices': [{'finish_reason': 'stop', 'message': {
@@ -87,6 +90,21 @@ class NumberingServiceTest(unittest.TestCase):
         self.assertEqual(self.upstream_requests, [])
         self.invalid_response = True
         self.assertEqual(self.post({'action': 'test'})[0], 502)
+
+    def test_later_batch_supplies_prior_groups_to_model(self):
+        candidate = {**module['EXAMPLE'], 'id': 501, 'headingLevel': 2}
+        previous = {**module['PREVIOUS_EXAMPLE'], 'id': 499, 'group': 1, 'excerpt': 'Earlier chapter'}
+        request = {'action': 'analyze', 'prompt': 'x' * 6000, 'candidates': [candidate], 'previous': [previous]}
+        status, response = self.post(request)
+        self.assertEqual((status, response['items'][0]['group'], response['items'][0]['level']), (200, 1, 2))
+        payload, _ = self.upstream_requests[-1]
+        self.assertIn('previous', payload['messages'][0]['content'])
+        self.assertEqual(json.loads(payload['messages'][1]['content']), {
+            'numbering_rules': request['prompt'], 'candidates': [candidate], 'previous': [previous],
+        })
+        self.assertEqual(self.post({**request, 'previous': [{**previous, 'id': 501}]})[0], 400)
+        self.assertEqual(self.post({**request, 'previous': [previous] * 16})[0], 400)
+        self.assertEqual(len(self.upstream_requests), 1)
 
     def test_browser_settings_work_without_defaults_and_use_a_json_object(self):
         self.editor.config = None

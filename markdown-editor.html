@@ -2928,10 +2928,6 @@ ${bodyHtml}
       }
       const candidates = editorNumbering.find(draft.text);
       if (!candidates.length) { showToast(t('numberingNoCandidates')); return; }
-      if (candidates.length > editorNumbering.maxCandidates) {
-        showToast(t('numberingTooMany', editorNumbering.maxCandidates));
-        return;
-      }
       const job = numberingJob = {
         id: draft.id, original: draft.text, candidates, picks: new Map(), controller: new AbortController()
       };
@@ -2951,12 +2947,15 @@ ${bodyHtml}
           cancelNumbering();
           return;
         }
-        status.textContent = t('numberingAnalyzing');
-        const response = await numberingRequest(settings, {
-          action: 'analyze', prompt: settings.prompt, candidates: candidates.map(candidate => candidate.hint)
+        const choices = await editorNumbering.analyze(candidates, (batch, previous, current, total) => {
+          status.textContent = total > 1 ? t('numberingAnalyzingBatch', current, total) : t('numberingAnalyzing');
+          return numberingRequest(settings, {
+            action: 'analyze', prompt: settings.prompt, candidates: batch,
+            previous: previous.length ? previous : undefined
+          }, signal);
         }, signal);
         if (numberingJob !== job || draft.id !== job.id || draft.text !== job.original) return;
-        job.choices = editorNumbering.decisions(candidates, response);
+        job.choices = choices;
         refreshNumberingReview();
       } catch (error) {
         if (numberingJob !== job) return;
@@ -2981,7 +2980,8 @@ ${bodyHtml}
       document.getElementById('numbering-apply').hidden = !job.result.canApply;
       document.getElementById('numbering-changes').hidden = !result.preview.length;
       const rows = document.getElementById('numbering-rows');
-      rows.replaceChildren(...result.preview.map(row => {
+      const entries = document.createDocumentFragment();
+      for (const row of result.preview) {
         const li = document.createElement('li');
         const { candidate, proposed } = row;
         const description = t('numberingReviewRow', candidate.id, candidate.hint.prefix || '—',
@@ -3001,8 +3001,9 @@ ${bodyHtml}
           refreshNumberingReview(candidate.id);
         });
         li.append(select);
-        return li;
-      }));
+        entries.append(li);
+      }
+      rows.replaceChildren(entries);
       if (restoreFocus) document.getElementById('numbering-choice-' + restoreFocus)?.focus();
       updateEditAvailability();
       updatePreview(true);

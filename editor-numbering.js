@@ -124,9 +124,10 @@ const editorNumbering = (() => {
     return Object.hasOwn(styles, style) && Boolean(styles[style].symbol) === (kind === 'u');
   }
 
-  function decisions(candidates, data) {
+  function decisions(candidates, data, previous = []) {
     if (!Array.isArray(data?.items) || data.items.length > candidates.length) throw Error('Invalid numbering response');
     const known = new Map(candidates.map(candidate => [candidate.id, candidate]));
+    const previousGroups = new Set(previous.map(item => item.group));
     const result = new Map();
     for (const choice of data.items) {
       if (!choice || !known.has(choice.id) || result.has(choice.id) ||
@@ -139,10 +140,41 @@ const editorNumbering = (() => {
       if (choice.kind !== 'skip') {
         const kind = kinds[choice.kind];
         if (!Object.hasOwn(kinds, choice.kind) || choice.level < 1 || choice.level > (kind === 'h' ? 6 : 9) ||
-            !known.has(choice.group) || choice.group > choice.id || (choice.group === choice.id && choice.level !== 1) ||
+            (!known.has(choice.group) && !previousGroups.has(choice.group)) ||
+            choice.group > choice.id || (choice.group === choice.id && choice.level !== 1) ||
             !(choice.style === 'auto' || validStyle(kind, choice.style))) throw Error('Invalid numbering structure');
       }
       result.set(choice.id, choice);
+    }
+    return result;
+  }
+
+  async function analyze(candidates, request, signal) {
+    const result = new Map();
+    const headings = [];
+    const list = [];
+    const firstBatchByLevel = new Map();
+    const total = Math.ceil(candidates.length / maxCandidates);
+    for (let index = 0; index < total; index++) {
+      const batch = candidates.slice(index * maxCandidates, (index + 1) * maxCandidates);
+      const previous = [...headings, ...list].filter(Boolean);
+      const response = await request(batch.map(candidate => candidate.hint), previous, index + 1, total);
+      signal.throwIfAborted();
+      const choices = decisions(batch, response, previous);
+      for (const candidate of batch) {
+        const choice = choices.get(candidate.id);
+        if (!choice || choice.kind === 'skip') continue;
+        const { id, kind, level, group } = choice;
+        const key = group + ':' + level;
+        if (!firstBatchByLevel.has(key)) firstBatchByLevel.set(key, index);
+        // Keep the established style and start for a level continued in a later batch.
+        result.set(id, firstBatchByLevel.get(key) < index ? { ...choice, style: 'auto', start: 0 } : choice);
+        const trail = kind === 'heading' ? headings : list;
+        if (kind === 'heading') list.length = 0;
+        trail.length = level;
+        const { prefix, excerpt } = candidate.hint;
+        trail[level - 1] = { id, kind, level, group, prefix, excerpt };
+      }
     }
     return result;
   }
@@ -286,6 +318,6 @@ const editorNumbering = (() => {
     return savedMarker('#'.repeat(level) + ' ' + text)?.body ?? text;
   }
 
-  return { maxCandidates, defaultPrompt, css, find, decisions, patch, annotate, decorate, headingContent,
+  return { defaultPrompt, css, find, decisions, analyze, patch, annotate, decorate, headingContent,
     info: node => metadata.get(node) };
 })();

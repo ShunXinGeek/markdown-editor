@@ -571,6 +571,88 @@ test('numbering results stay in the right preview and exports are manual', { tim
   assert.equal(downloads, 1);
 });
 
+test('long numbering continues headings and lists across batches', { timeout: 45000 }, async t => {
+  const server = await serve();
+  t.after(server.close);
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page } = await launchPage(browser, server.url, true);
+  await page.locator('#organize-numbering').click();
+  await page.locator('[onclick="saveNumberingSettings()"]').click();
+
+  const original = ['# 9. Chapter A',
+    ...Array.from({ length: 238 }, (_, i) => '## 9.9 Section ' + (i + 1)),
+    '### 9.9.9 Detail A', '### 9.9.9 Detail B', '## 9.9 Closing section',
+    '# 20. Chapter B', '## 20.9 Chapter B section',
+    Array.from({ length: 238 }, (_, i) => '1. Item ' + (i + 1)).join('\n'),
+    '# 31. Chapter C', '## 31.9 Chapter C section'].join('\n\n');
+  await edit(page, original);
+  const batches = [];
+  let statuses = 0;
+  let confirmations = 0;
+  let failLaterBatch = true;
+  page.on('dialog', dialog => { if (dialog.type() === 'confirm') confirmations++; });
+  await page.route('**/api/numbering', async route => {
+    const { action, candidates, previous } = route.request().postDataJSON();
+    if (action === 'status') {
+      statuses++;
+      await route.fulfill({ json: { provider: 'numbering.test', model: 'fixture-model' } });
+      return;
+    }
+    batches.push({ size: candidates.length, path: previous?.map(row => [row.kind, row.level, row.excerpt]) });
+    if (previous) {
+      assert.equal(await page.locator('#preview [data-number-label]').count(), 0);
+      assert.equal(await page.locator('#numbering-apply').isVisible(), false);
+      assert.match(await page.locator('#numbering-status').textContent(), /第 [23] 批，共 3 批/);
+      if (failLaterBatch) {
+        await route.fulfill({ status: 502, json: { error: 'Fixture failure' } });
+        return;
+      }
+    }
+    const anchor = kind => previous?.find(row => row.kind === kind && row.level === 1)?.group ??
+      candidates.find(row => row.kind === kind)?.id;
+    await route.fulfill({ json: { items: candidates.map(candidate => {
+      const { id, kind, headingLevel, excerpt } = candidate;
+      const changedStyle = excerpt === 'Detail B';
+      return { id, kind, level: headingLevel || 1, group: anchor(kind),
+        style: kind === 'heading' && !changedStyle ? 'outline' : 'decimal-dot',
+        start: changedStyle ? 99 : 0, review: false };
+    }).reverse() } });
+  });
+
+  await page.locator('#organize-numbering').click();
+  await page.locator('#toast.show').filter({ hasText: '模型调用失败' }).waitFor();
+  assert.equal(await page.locator('#numbering-review').isVisible(), false);
+  assert.equal(await page.locator('#editor').inputValue(), original);
+  assert.deepEqual(batches.map(batch => batch.size), [240, 240]);
+
+  failLaterBatch = false;
+  batches.length = 0;
+  await page.locator('#organize-numbering').click();
+  await page.locator('#numbering-apply').waitFor();
+  assert.equal(statuses, 2);
+  assert.equal(confirmations, 2);
+  assert.deepEqual(batches, [
+    { size: 240, path: undefined },
+    { size: 240, path: [['heading', 1, 'Chapter A'], ['heading', 2, 'Section 238'], ['heading', 3, 'Detail A']] },
+    { size: 4, path: [['heading', 1, 'Chapter B'], ['heading', 2, 'Chapter B section'], ['ordered', 1, 'Item 236']] }
+  ]);
+  const labels = page.locator('#preview [data-number-label]');
+  const expected = ['1', ...Array.from({ length: 238 }, (_, i) => '1.' + (i + 1)),
+    '1.238.1', '1.238.2', '1.239', '2', '2.1', ...Array.from({ length: 238 }, (_, i) => (i + 1) + '.'), '3', '3.1'];
+  const verifyLabels = async () => {
+    assert.deepEqual(await labels.evaluateAll(nodes => nodes.map(node => node.dataset.numberLabel)), expected);
+    assert.deepEqual(await page.locator('#preview h3').allTextContents(), ['Detail A', 'Detail B']);
+  };
+  await verifyLabels();
+  assert.equal(await page.locator('#editor').inputValue(), original);
+  await page.locator('#numbering-apply').click();
+  await page.waitForFunction(() => document.querySelectorAll('#preview [data-number-label]').length === 484);
+  await verifyLabels();
+  await page.locator('[onclick="undo()"]').click();
+  assert.equal(await page.locator('#editor').inputValue(), original);
+});
+
 test('offline archive and attachment round-trip', { timeout: 60000 }, async t => {
   const server = await serve();
   t.after(server.close);
