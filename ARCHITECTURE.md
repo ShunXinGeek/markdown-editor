@@ -1,6 +1,6 @@
 # Markdown 编辑器架构
 
-本文描述当前工作区的程序结构和数据流，适用于直接打开页面、本地 HTTP 服务及 Netlify 静态发布。浏览器承担编辑、持久化、预览和导出；Python 服务只用于用户选择的网页抓取。
+本文描述直接打开页面、本地 HTTP 服务及 Netlify 发布时的程序结构和数据流。浏览器承担编辑、持久化、预览和导出。模型编号由本机 Python 服务或 Netlify Function 转发，网页抓取可使用本机 Python 代理。
 
 ## 入口、模块和加载顺序
 
@@ -15,12 +15,13 @@
 | editor-numbering.js | 编号候选项提取、模型结果校验、编号标记写入，以及预览中的编号装饰。 |
 | render-content.js | Markdown 到已净化 DOM 的转换、链接和图片地址检查、Mermaid 图表处理。 |
 | numbering-model.py | 可选本机编号服务：提供构建后的静态页面和同源 /api/numbering，转发受限的候选项给用户配置的兼容模型接口。 |
+| netlify/functions/numbering.mjs | 网页版的同源 /api/numbering，验证请求并转发给允许的 HTTPS 模型端点。 |
 | vendor/ | 基础运行依赖 Marked、DOMPurify、fflate；离线包使用的 KaTeX、Mermaid 和字体；依赖清单、许可证与 SHA-384 校验值。 |
 | web-to-md-proxy.py | 可选本机抓取服务和书签脚本。 |
 | build-static.py、netlify.toml | 构建发布目录、内容安全策略、离线包及 Netlify 配置。 |
 | tests/、.github/workflows/check.yml | 浏览器、Python 代理、构建与回归测试，及推送后的 CI。 |
 
-页面先加载随仓库发布的基础依赖和上述 JavaScript 模块，再执行 HTML 内联控制器的 init()。KaTeX、Mermaid、docx 和 dom-to-image-more 在需要时从固定版本的 CDN 加载，并校验 SRI。构建生成的离线包替换 KaTeX 与 Mermaid 的网络地址；Word 和 PNG 库仍需按需取得。直接打开页面时须保留相邻 JavaScript 文件及 vendor/，而不是只复制 HTML。编号模型功能须通过本机编号服务打开页面；静态页面本身不提供 /api/numbering。
+页面先加载随仓库发布的基础依赖和上述 JavaScript 模块，再执行 HTML 内联控制器的 init()。KaTeX、Mermaid、docx 和 dom-to-image-more 在需要时从固定版本的 CDN 加载，并校验 SRI。构建生成的离线包替换 KaTeX 与 Mermaid 的网络地址；Word 和 PNG 库仍需按需取得。直接打开页面时须保留相邻 JavaScript 文件及 vendor/，而不是只复制 HTML。模型编号使用同源 /api/numbering，静态文件发布目录只包含前端产物。
 
 ## 活动草稿、保存与工作区
 
@@ -40,7 +41,9 @@ updatePreview() 从 draft 派生预览。render-content.js 先处理公式和列
 
 ## 整理编号
 
-editor-numbering.js 从标题和列表等行提取候选项，排除代码块等受保护内容。每批最多分析 240 个候选项，发送结构线索、原编号和短摘录。后续批次带上前面的标题和列表路径，可沿用已有组号。浏览器合并各批次结果后统一计算整篇编号。本机 numbering-model.py 在构建后的 dist/ 上监听回环地址，提供同源 /api/numbering；它检查请求来源、大小、字段和候选项数量，并限制并发。浏览器可选择供应商、模型和提示词，或使用服务端环境变量配置。浏览器填写的 API Key 只保存在当前标签页的 sessionStorage，不写入草稿或 localStorage；模型请求由本机服务转发。服务端默认配置使用 JSON Schema 响应格式，浏览器供应商配置使用 JSON 对象响应格式；两者均校验模型返回的编号字段。
+editor-numbering.js 从标题和列表等行提取候选项，排除代码块等受保护内容。本机服务每批最多分析 240 个候选项，Netlify 函数通过状态接口告知浏览器每批最多 40 个。每批发送结构线索、原编号和短摘录。后续批次带上前面的标题和列表路径，可沿用已有组号。浏览器合并各批次结果后统一计算整篇编号。
+
+本机 numbering-model.py 在构建后的 dist/ 上监听回环地址，支持服务端默认模型配置及个人供应商配置。Netlify 函数要求个人 API Key，转发范围限于固定供应商地址和部署环境明确配置的可信 HTTPS 地址，上游请求超时为 50 秒。两种服务均校验请求及模型返回结构。通过模型设置填写的密钥只保存在当前标签页的 sessionStorage。浏览器供应商配置使用 JSON 对象响应格式，本机服务端默认配置使用 JSON Schema 响应格式。
 
 整理编号先测试服务状态并请用户确认发送范围，再分析候选项。模型只返回分类、层级、分组和样式建议，不能改写正文；浏览器校验建议并生成带 md-number:v1 标记的草稿候选版本。右侧预览可逐项选择使用、保留原文或指定类型；此时左侧正文尚未修改，取消或切换文档会清除临时结果。点击“应用编号”才写入草稿和撤销历史。已应用的标记随正文保存，可离线渲染；渲染时在净化后的 DOM 上恢复编号标签和列表样式。
 
