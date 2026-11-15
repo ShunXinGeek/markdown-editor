@@ -192,6 +192,8 @@ python web-to-md-proxy.py --origin https://你的编辑器域名
 
 运行 `python build-static.py`。脚本核对所附依赖的完整性，并将运行文件、许可证及安全响应头写入 `dist/`。Netlify 从该目录发布，首页重写至编辑器。可运行 `python -m http.server 8080 --directory dist` 后访问 `http://127.0.0.1:8080/markdown-editor.html` 检查产物。
 
+Netlify 项目 `md-editor-app` 以 GitHub 仓库 `ShunXinGeek/markdown-editor` 的 `master` 为生产分支。推送到该分支会触发生产构建，构建成功后自动发布。
+
 ---
 
 ## 本地文档、离线包与导出
