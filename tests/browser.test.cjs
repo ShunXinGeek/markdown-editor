@@ -50,6 +50,13 @@ async function download(page, action) {
   return { name: download.suggestedFilename(), bytes: await readFile(await download.path()) };
 }
 
+function assertWordListIndent(paragraph) {
+  const [, left, hanging] = paragraph.match(/<w:ind w:left="(\d+)" w:hanging="(\d+)"\/>/) || [];
+  assert.ok(Number(hanging) > 0, 'Expected a hanging indent in the Word list paragraph');
+  assert.equal(left, hanging);
+  assert.match(paragraph, new RegExp(`<w:tab w:val="left" w:pos="${left}"/>`));
+}
+
 test('Python proxy contract and bounded transport', () => {
   const result = spawnSync(python, ['-m', 'unittest', 'discover', '-s', 'tests', '-p', 'test_*.py'], { encoding: 'utf8' });
   assert.equal(result.status, 0, result.stdout + result.stderr);
@@ -76,7 +83,7 @@ test('static site browser regression', { timeout: 180000 }, async t => {
       const text = 'Heading\n-------\n\n**Bold** <u>ok</u>\n\n<iframe title="removed"></iframe>';
       await edit(page, text);
       assert.equal(await page.locator('#preview iframe').count(), 0);
-      assert.equal(await page.locator('#preview h2').textContent(), 'Heading');
+      assert.equal((await page.locator('#preview li').first().textContent()).trim(), 'Heading');
       assert.equal(await page.locator('#preview u').textContent(), 'ok');
       assert.equal(await page.evaluate(() => {
         const dicts = Object.values(i18n);
@@ -149,7 +156,7 @@ test('static site browser regression', { timeout: 180000 }, async t => {
     assert.equal(md.bytes.toString(), markdown);
     const html = await download(page, () => exportAs('exportHtml'));
     assert.equal(html.name, '会议纪要.定稿.html');
-    assert.match(html.bytes.toString(), /<h1>Export fixture<\/h1>/);
+    assert.match(html.bytes.toString(), /<li>Export fixture<\/li>/);
     const bundle = await download(page, () => exportAs('attachmentZip'));
     assert.equal(bundle.name, '会议纪要.定稿.zip');
     const docx = await download(page, () => exportAs('exportWord'));
@@ -219,7 +226,7 @@ test('list presets, editable hierarchy and document fonts in Chromium', { timeou
   await page.keyboard.press('Escape');
   assert.equal(await page.locator('button[aria-controls="ordered-menu"]').getAttribute('aria-expanded'), 'false');
   await edit(page, 'A. Smith wrote this.\n\n1. Item\n\n       A. Indented code\n       B. Indented code\n\n2. Another item');
-  assert.equal(await page.locator('#preview > div > p').textContent(), 'A. Smith wrote this.');
+  assert.equal(await page.locator('#preview > div > p').first().textContent(), 'A. Smith wrote this.');
   assert.equal(await page.locator('#preview pre').textContent(), 'A. Indented code\nB. Indented code\n');
 
   let hierarchy = '壹、甲\nA. 字母甲\n(1) 数字甲\n(2) 数字乙\nB. 字母乙\n贰、乙\nA. 字母丙\n(1) 数字丙';
@@ -245,9 +252,21 @@ test('list presets, editable hierarchy and document fonts in Chromium', { timeou
   await page.locator('#custom-font-form button').click();
   assert.match(await editor.inputValue(), /^<!-- md-font: Times New Roman -->\n\n/);
   assert.equal(await root.evaluate(el => getComputedStyle(el).fontFamily), '"Times New Roman", sans-serif');
-  await page.evaluate(() => saveToLocal());
+  const content = await editor.inputValue();
+  const withHeadings = content + '\n\n' + Array.from({ length: 6 }, (_, i) => '#'.repeat(i + 1) + ' Title ' + (i + 1)).join('\n\n');
+  await edit(page, withHeadings);
+  const fontSizes = scope => page.locator(scope + ' .markdown-body, ' + scope + ' .markdown-body li')
+    .evaluateAll(nodes => nodes.map(node => Number.parseFloat(getComputedStyle(node).fontSize)));
+  const defaultSizes = await fontSizes('#preview');
+  assert.ok(defaultSizes.length >= 7 && defaultSizes.every(size => size === 16));
+  await page.evaluate(() => {
+    localStorage.setItem('md_editor_font_sizes', JSON.stringify({ body: 15, h2: 18 }));
+    return saveToLocal();
+  });
   await page.reload();
-  await page.waitForFunction(() => ready);
+  await page.waitForFunction(() => ready && renderedPreviewText === draft.text);
+  assert.deepEqual(await fontSizes('#preview'), defaultSizes);
+  assert.equal(await page.locator('#font-size-toggle').count(), 0);
   assert.equal(await root.evaluate(el => getComputedStyle(el).fontFamily), '"Times New Roman", sans-serif');
   const html = await download(page, () => exportAs('exportHtml'));
   const exported = await context.newPage();
@@ -255,6 +274,8 @@ test('list presets, editable hierarchy and document fonts in Chromium', { timeou
   const savedList = exported.locator('ol[data-list-style="decimal-parens"]').first();
   assert.equal(await savedList.evaluate(el => getComputedStyle(el).listStyleType), 'md-list-decimal-parens');
   assert.equal(await savedList.evaluate(el => getComputedStyle(el).fontFamily), '"Times New Roman", sans-serif');
+  assert.equal(await exported.locator('body').evaluate(el => getComputedStyle(el).fontSize), '16px');
+  assert.equal(await savedList.evaluate(el => getComputedStyle(el).fontSize), '16px');
   await exported.close();
   const md = await download(page, () => exportAs('exportMd'));
   assert.equal(md.bytes.toString(), await editor.inputValue());
@@ -263,12 +284,20 @@ test('list presets, editable hierarchy and document fonts in Chromium', { timeou
   const files = require('../vendor/fflate.js').unzipSync(word.bytes);
   const xml = name => Buffer.from(files[`word/${name}.xml`]).toString();
   assert.match(xml('styles'), /w:eastAsia="Times New Roman"/);
+  assert.match(xml('styles'), /<w:rPrDefault>.*?<w:sz w:val="24".*?<\/w:rPrDefault>/s);
+  assert.doesNotMatch(xml('document'), /<w:pStyle w:val="Heading/);
+  const listLevels = [...xml('numbering').matchAll(/<w:lvl\b[^>]*>(.*?)<\/w:lvl>/g)]
+    .map(match => match[1]).filter(level => level.includes('<w:suff w:val="tab"/>'));
+  assert.ok(listLevels.length >= 3 && listLevels.every(level => level.includes('<w:lvlJc w:val="left"/>')));
+  for (const paragraph of xml('document').match(/<w:p>.*?<\/w:p>/gs).filter(p => p.includes('<w:numPr>'))) {
+    assertWordListIndent(paragraph);
+  }
   assert.match(xml('numbering'), /w:numFmt w:val="chineseLegalSimplified"/);
   assert.match(xml('numbering'), /w:numFmt w:val="upperLetter"/);
   assert.match(xml('numbering'), /w:lvlText w:val="\(%3\)"/);
   const wordLists = [...xml('document').matchAll(/<w:ilvl w:val="([0-2])"\/><w:numId w:val="(\d+)"\/>/g)];
   assert.deepEqual([...new Set(wordLists.map(match => match[1]))], ['0', '1', '2']);
-  assert.equal(new Set(wordLists.map(match => match[2])).size, 1);
+  assert.equal(new Set(wordLists.slice(0, 8).map(match => match[2])).size, 1);
   assert.doesNotMatch(xml('document'), /壹、甲|A\. 字母甲|\(1\) 插入/);
 
   await page.evaluate(() => { window.print = () => { window.printCalled = true; }; });
@@ -276,6 +305,7 @@ test('list presets, editable hierarchy and document fonts in Chromium', { timeou
   await page.waitForFunction(() => window.printCalled);
   assert.equal(await page.locator('#pdf-document .markdown-body').evaluate(el => getComputedStyle(el).fontFamily),
     '"Times New Roman", sans-serif');
+  assert.deepEqual(await fontSizes('#pdf-document'), defaultSizes);
   const pdf = await page.pdf();
   assert.equal(pdf.subarray(0, 5).toString(), '%PDF-');
   await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
@@ -369,7 +399,7 @@ test('model settings fill provider URLs, save and use the selected model', { tim
     assert.deepEqual(payload.connection, { baseUrl: 'https://provider.example/custom/v1', apiKey: 'fixture-key' });
     if (payload.action === 'analyze') {
       const id = payload.candidates[0].id;
-      await route.fulfill({ json: { items: [{ id, kind: 'heading', level: 1, group: id,
+      await route.fulfill({ json: { items: [{ id, kind: 'ordered', level: 1, group: id,
         style: 'outline', start: 0, review: false }] } });
     } else {
       await route.fulfill({ json: { provider: 'provider.example', model: payload.model } });
@@ -437,8 +467,19 @@ test('HTTPS editor uses the same-origin Netlify function and applies a cross-bat
     const { candidates, previous } = JSON.parse(messages[1].content);
     upstreamCalls.push({ size: candidates.length, previous });
     const group = previous?.[0]?.group ?? candidates[0].id;
-    const items = candidates.map(row => ({ id: row.id, kind: 'heading', level: row.headingLevel,
+    let items = candidates.map(row => ({ id: row.id, kind: 'ordered', level: row.depth || 1,
       group, style: 'outline', start: 0, review: false }));
+    if (candidates[0].excerpt === '定义') {
+      assert.match(messages[0].content, /「1\. 定义」是 ordered 第 1 级/);
+      assert.equal(candidates[0].headingLevel, 0);
+      assert.equal(candidates[1].prefix, '1.1');
+      // Return the reported misclassification and also cover an omitted child.
+      items = [
+        { ...items[0], level: 1, style: 'decimal-dot' },
+        ...(candidates[0].id === 1 ? [{ ...items[1], kind: 'ordered', level: 1, group: items[1].id }] : []),
+        ...items.slice(2).map(item => ({ ...item, kind: 'ordered', level: 3, style: 'decimal-parens' }))
+      ];
+    }
     return Response.json({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ items }) } }] });
   });
   await context.route(`${origin}/**`, async route => {
@@ -492,9 +533,34 @@ test('HTTPS editor uses the same-origin Netlify function and applies a cross-bat
   assert.notEqual(await page.locator('#editor').inputValue(), original);
   await page.locator('[onclick="undo()"]').click();
   assert.equal(await page.locator('#editor').inputValue(), original);
+
+  const clauses = [
+    '1. 定义',
+    '1.1. 除上下文另有规定外,下列词语和表述应具有本条款赋予它们的含义:',
+    '(1)"附属公司"就某公司而言,指的是(1)该公司的直接或间接子公司,或(2)该公司的直接或间接控股公司,或(3)该控股公司(不包括该公司)的直接或间接子公司。',
+    '(2)"附属公司"须据此诠释,而"控股公司"及"附属公司"则分别具有《公司条例》(第622章)第13及15条所赋予的含义。',
+    '(3)"协议"指本联营体经营协议及双方根据第37条不时商定的修订(如有)。',
+    '(4)"资金通知”指联营体董事会向各方发出的通知,以根据第11条的规定向各方催缴营运资金。"CEO"指一方的CEO或董事总经理或类似级别的官员。',
+    '(5)“投标条件”系指业主对提交投标书的要求。'
+  ].join('\n');
+  for (const source of [clauses, '\n' + clauses.replace('1.', '1\\.')]) {
+    await edit(page, source);
+    page.once('dialog', dialog => dialog.accept());
+    await organize.click();
+    await page.locator('#numbering-apply').waitFor();
+    const preview = page.locator('#preview .markdown-body');
+    const first = preview.locator(':scope > ol > li[data-number-label="1."]');
+    const second = first.locator(':scope > ol > li[data-number-label="1.1"]');
+    assert.match(await first.textContent(), /^\s*定义/);
+    assert.match(await second.textContent(), /^\s*除上下文另有规定外/);
+    assert.deepEqual(await second.locator(':scope > ol > li').evaluateAll(nodes => nodes.map(node => node.dataset.numberLabel)),
+      ['(1)', '(2)', '(3)', '(4)', '(5)']);
+    assert.equal(await preview.locator('h1,h2').count(), 0);
+    assert.equal(await page.locator('#editor').inputValue(), source);
+  }
 });
 
-test('numbering results stay in the right preview and exports are manual', { timeout: 90000 }, async t => {
+test('numbering suggestions can be reopened and edited by level while exports remain manual', { timeout: 90000 }, async t => {
   const server = await serve();
   t.after(server.close);
   const browser = await chromium.launch();
@@ -505,8 +571,8 @@ test('numbering results stay in the right preview and exports are manual', { tim
       '依照第十五條，保留 \x60x = 2\x60、12.34 元及空格。  \r\n';
     const candidates = editorNumbering.find(original);
     const titles = candidates.map(candidate => candidate.body);
-    const choices = editorNumbering.decisions(candidates, { items: candidates.map((candidate, index) => ({
-      id: candidate.id, kind: 'heading', group: candidates[0].id, level: index + 1,
+    const choices = editorNumbering.decisions(candidates, { items: candidates.slice(0, 2).map((candidate, index) => ({
+      id: candidate.id, kind: 'ordered', group: candidates[0].id, level: index + 1,
       style: 'auto', start: 0, review: false
     })) });
     const result = editorNumbering.patch(original, candidates, choices, new Map());
@@ -515,7 +581,7 @@ test('numbering results stay in the right preview and exports are manual', { tim
   assert.deepEqual(protectedContent.titles, ['範圍  ', '約定 **原文**']);
   assert.deepEqual(protectedContent.pending, [false, true]);
   assert.equal(protectedContent.text,
-    '# <!-- md-number:v1:h:g1:1:chapter:1 --> 範圍  \r\n\r\n\t10. code\r\n\r\n## 第十五條約定 **原文**\r\n\r\n' +
+    '1. <!-- md-number:v1:o:g1:1:chapter:1 --> 範圍  \r\n\r\n\t10. code\r\n\r\n## 第十五條約定 **原文**\r\n\r\n' +
     '依照第十五條，保留 \x60x = 2\x60、12.34 元及空格。  \r\n');
   await page.locator('#organize-numbering').click();
   await page.locator('#numbering-settings').waitFor();
@@ -524,7 +590,7 @@ test('numbering results stay in the right preview and exports are manual', { tim
   await page.locator('#numbering-prompt').fill('temporary');
   await page.locator('[onclick="restoreNumberingPrompt()"]').click();
   assert.equal(await page.locator('#numbering-prompt').inputValue(), basePrompt);
-  await page.locator('#numbering-prompt').fill(basePrompt + '\nPrefer outline numbering for headings.');
+  await page.locator('#numbering-prompt').fill(basePrompt + '\nPrefer outline numbering for ordered lists.');
   const actions = [];
   let delayResponse;
   let notifyAnalysis;
@@ -545,15 +611,15 @@ test('numbering results stay in the right preview and exports are manual', { tim
       id: id(name), kind, level, group: id(anchor), style, start: 0, review
     });
     const items = [
-      entry('Scope', 'heading', 1, 'Scope', 'outline'),
-      entry('Details', 'heading', 2, 'Scope', 'outline'),
+      entry('Scope', 'ordered', 1, 'Scope', 'outline'),
+      entry('Details', 'ordered', 2, 'Scope', 'outline'),
       entry('First', 'ordered', 1, 'First', 'decimal-dot'),
       entry('Second', 'ordered', 1, 'First', 'decimal-dot'),
       entry('Third', 'ordered', 1, 'First', 'decimal-dot'),
       entry('Bullet', 'bullet', 1, 'Bullet', 'diamond'),
       entry('Nested', 'bullet', 2, 'Bullet', 'circle'),
-      entry('Notes', 'heading', 1, 'Scope', 'outline'),
-      entry('Next', 'heading', 2, 'Scope', 'outline'),
+      entry('Notes', 'ordered', 1, 'Scope', 'outline'),
+      entry('Next', 'ordered', 2, 'Scope', 'outline'),
       entry('Compound', 'ordered', 1, 'Compound', 'outline', true)
     ];
     if (delayResponse) {
@@ -574,7 +640,7 @@ test('numbering results stay in the right preview and exports are manual', { tim
   let downloads = 0;
   page.on('download', () => downloads++);
   await page.locator('#organize-numbering').click();
-  await page.waitForFunction(() => document.querySelector('#preview h2')?.dataset.numberLabel === '1.1');
+  await page.waitForFunction(() => document.querySelector('#preview li[data-number-label="1.1"]'));
   assert.equal(await page.locator('#editor').inputValue(), original);
   assert.equal(downloads, 0);
   assert.equal(await page.evaluate(() => window.printCount || 0), 0);
@@ -584,34 +650,75 @@ test('numbering results stay in the right preview and exports are manual', { tim
   assert.equal(await page.locator('#preview a').getAttribute('href'), 'https://private.example/a');
   assert.match(await page.locator('#preview pre').textContent(), /PRIVATE-CODE/);
   assert.match(await page.locator('#numbering-status').textContent(), /1.*待确认/);
+  const panel = page.locator('#numbering-review');
+  const previewPane = page.locator('#preview');
+  const togglePanel = page.locator('#numbering-toggle');
+  const resizer = page.locator('#numbering-resizer');
+  assert.equal(await panel.evaluate(el => !!el.previousElementSibling?.matches('.main')), true);
+  assert.equal(await page.locator('#preview-pane #numbering-review, .preview-pane #numbering-review').count(), 0);
+  const initial = await panel.boundingBox();
+  const handle = await resizer.boundingBox();
+  await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2 - 48);
+  await page.mouse.up();
+  const enlarged = await panel.boundingBox();
+  const previewBounds = await previewPane.boundingBox();
+  assert.ok(enlarged.height > initial.height && previewBounds.height > 100);
+  assert.ok(previewBounds.y + previewBounds.height <= enlarged.y + 1);
+
+  const orderedTwo = page.locator('#numbering-style-ordered-2');
+  await orderedTwo.selectOption('decimal-wide');
+  assert.deepEqual(await page.locator('#preview li[data-number-label="（1）"]').evaluateAll(nodes => nodes.map(node => node.dataset.numberLabel)), ['（1）', '（1）']);
+  await page.locator('#numbering-collapse').click();
+  assert.equal(await panel.isVisible(), false);
+  assert.equal(await togglePanel.getAttribute('aria-expanded'), 'false');
+  assert.ok(await page.locator('#preview li[data-number-label="（1）"]').first().isVisible());
+  await togglePanel.click();
+  assert.equal(await orderedTwo.inputValue(), 'decimal-wide');
+  assert.deepEqual(actions, ['test', 'status', 'analyze']);
+  await orderedTwo.selectOption('');
+
   const compoundId = original.split('\n').findIndex(line => line.startsWith('1.2.3')) + 1;
-  await page.locator('#numbering-changes summary').click();
+  await page.locator('button[aria-controls="numbering-lines-ordered-1"]').click();
   await page.locator('#numbering-choice-' + compoundId).selectOption('use');
-  await page.waitForFunction(() => [...document.querySelectorAll('#preview li[data-number-label]')]
-    .some(li => li.textContent === 'Compound'));
+  assert.ok(await page.locator('#preview li[data-number-label]').evaluateAll(items =>
+    items.some(li => li.textContent.trim() === 'Compound')), await page.locator('#numbering-status').textContent());
   await page.locator('#numbering-choice-' + compoundId).selectOption('keep');
+  const orderedOne = page.locator('#numbering-style-ordered-1');
+  await orderedOne.selectOption('decimal-wide');
+  assert.deepEqual(await page.locator('#preview li[data-number-label]').evaluateAll(nodes => nodes.map(node => node.dataset.numberLabel)),
+    ['（1）', '1.1', '（1）', '（2）', '（3）', '◆', '○', '（2）', '2.1']);
+  assert.equal(await page.locator('#numbering-choice-' + compoundId).inputValue(), 'keep');
+  assert.match(await page.locator('#numbering-choice-' + compoundId).locator('..').textContent(), /手动选择/);
+  await orderedOne.selectOption('');
 
   const exportAs = async key => {
     await page.locator('#export-dropdown > button').click();
     await page.locator('#export-menu [data-i18n="' + key + '"]').click();
+    assert.match(await page.locator('#export-check-status').filter({ hasText: '多级编号无法与上下文连续衔接' }).textContent(), /按原文保留/);
+    await page.locator('#export-continue').click();
   };
   const output = await download(page, () => exportAs('exportWord'));
   const files = require('../vendor/fflate.js').unzipSync(output.bytes);
   const xml = name => Buffer.from(files['word/' + name + '.xml']).toString();
   assert.match(xml('numbering'), /<w:lvlText w:val="%1\.%2"\/>/);
-  assert.match(xml('numbering'), /<w:pStyle w:val="Heading2"\/>/);
+  assert.doesNotMatch(xml('numbering'), /<w:pStyle w:val="Heading/);
   assert.doesNotMatch(xml('document'), /7\.4 Details|12\.3 Next/);
   const byText = text => {
     const paragraph = [...xml('document').matchAll(/<w:p>.*?<\/w:p>/gs)].find(match => match[0].includes(text))?.[0];
     assert.ok(paragraph, 'Expected Word paragraph containing ' + text);
     return { style: paragraph.match(/<w:pStyle w:val="([^"]+)"/)?.[1], numId: paragraph.match(/<w:numId w:val="(\d+)"/)?.[1] };
   };
-  assert.equal(byText('Details').style, 'Heading2');
+  assert.equal(byText('Details').style, 'ListParagraph');
   assert.ok(byText('Details').numId);
   assert.equal(byText('Details').numId, byText('Next').numId);
   assert.equal(byText('First').numId, byText('Third').numId);
   assert.ok(byText('First').numId);
   assert.ok(byText('Bullet').numId);
+  const preserved = xml('document').match(/<w:p>.*?<\/w:p>/gs).find(p => p.includes('Compound'));
+  assert.match(preserved, />1\.2\.3<\/w:t><w:tab\/>/);
+  assertWordListIndent(preserved);
   await exportAs('exportPdf');
   await page.waitForFunction(() => window.printCount === 1);
   assert.deepEqual(await page.locator('#pdf-document [data-number-label]').evaluateAll(nodes => nodes.map(node => node.dataset.numberLabel)), labels);
@@ -624,9 +731,12 @@ test('numbering results stay in the right preview and exports are manual', { tim
   const applied = await page.locator('#editor').inputValue();
   assert.match(applied, /md-number:v1/);
   assert.match(applied, /正文金额 12\.34 元，保留 \[原链接\]\(https:\/\/private.example\/a\)。/);
-  assert.equal(await page.locator('#numbering-review').isVisible(), false);
-  await page.locator('[onclick="undo()"]').click();
+  assert.equal(await page.locator('#numbering-review').isVisible(), true);
+  assert.match(await page.locator('#numbering-status').textContent(), /已应用/);
+  assert.equal(await page.locator('#numbering-apply').isVisible(), false);
+  await page.locator('#numbering-undo').click();
   assert.equal(await page.locator('#editor').inputValue(), original);
+  assert.match(await page.locator('#numbering-status').textContent(), /已撤回/);
 
   invalidResponse = true;
   await page.locator('#organize-numbering').click();
@@ -640,12 +750,13 @@ test('numbering results stay in the right preview and exports are manual', { tim
   await inFlight;
   await edit(page, original + '\n保留刚刚添加的正文。');
   finish();
-  assert.equal(await page.locator('#numbering-review').isVisible(), false);
+  assert.match(await page.locator('#numbering-status').textContent(), /原文已变化/);
+  assert.equal(await page.locator('#numbering-apply').isVisible(), false);
   assert.match(await page.locator('#preview').textContent(), /保留刚刚添加的正文/);
   assert.equal(downloads, 1);
 });
 
-test('long numbering continues headings and lists across batches', { timeout: 45000 }, async t => {
+test('long numbering continues list levels across batches', { timeout: 45000 }, async t => {
   const server = await serve();
   t.after(server.close);
   const browser = await chromium.launch();
@@ -683,13 +794,16 @@ test('long numbering continues headings and lists across batches', { timeout: 45
         return;
       }
     }
-    const anchor = kind => previous?.find(row => row.kind === kind && row.level === 1)?.group ??
-      candidates.find(row => row.kind === kind)?.id;
+    const anchor = previous?.[0]?.group ?? candidates[0].id;
+    const itemsGroup = previous?.find(row => row.excerpt.startsWith('Item '))?.group ??
+      candidates.find(row => row.excerpt.startsWith('Item '))?.id;
     await route.fulfill({ json: { items: candidates.map(candidate => {
-      const { id, kind, headingLevel, excerpt } = candidate;
+      const { id, kind, depth, excerpt } = candidate;
+      const plainSeries = excerpt.startsWith('Item ');
+      const finalSeries = excerpt.startsWith('Chapter C');
       const changedStyle = excerpt === 'Detail B';
-      return { id, kind, level: headingLevel || 1, group: anchor(kind),
-        style: kind === 'heading' && !changedStyle ? 'outline' : 'decimal-dot',
+      return { id, kind, level: depth || 1, group: plainSeries ? itemsGroup : finalSeries ? candidates.find(row => row.excerpt === 'Chapter C').id : anchor,
+        style: !plainSeries && !changedStyle ? 'outline' : 'decimal-dot',
         start: changedStyle ? 99 : 0, review: false };
     }).reverse() } });
   });
@@ -708,15 +822,15 @@ test('long numbering continues headings and lists across batches', { timeout: 45
   assert.equal(confirmations, 2);
   assert.deepEqual(batches, [
     { size: 240, path: undefined },
-    { size: 240, path: [['heading', 1, 'Chapter A'], ['heading', 2, 'Section 238'], ['heading', 3, 'Detail A']] },
-    { size: 4, path: [['heading', 1, 'Chapter B'], ['heading', 2, 'Chapter B section'], ['ordered', 1, 'Item 236']] }
+    { size: 240, path: [['ordered', 1, 'Chapter A'], ['ordered', 2, 'Section 238'], ['ordered', 3, 'Detail A']] },
+    { size: 4, path: [['ordered', 1, 'Item 236']] }
   ]);
   const labels = page.locator('#preview [data-number-label]');
   const expected = ['1', ...Array.from({ length: 238 }, (_, i) => '1.' + (i + 1)),
-    '1.238.1', '1.238.2', '1.239', '2', '2.1', ...Array.from({ length: 238 }, (_, i) => (i + 1) + '.'), '3', '3.1'];
+    '1.238.1', '1.238.2', '1.239', '2', '2.1', ...Array.from({ length: 238 }, (_, i) => (i + 1) + '.'), '1', '1.1'];
   const verifyLabels = async () => {
     assert.deepEqual(await labels.evaluateAll(nodes => nodes.map(node => node.dataset.numberLabel)), expected);
-    assert.deepEqual(await page.locator('#preview h3').allTextContents(), ['Detail A', 'Detail B']);
+    assert.equal((await page.locator('#preview li[data-number-label="1.238.2"]').textContent()).trim(), 'Detail B');
   };
   await verifyLabels();
   assert.equal(await page.locator('#editor').inputValue(), original);
@@ -725,6 +839,132 @@ test('long numbering continues headings and lists across batches', { timeout: 45
   await verifyLabels();
   await page.locator('[onclick="undo()"]').click();
   assert.equal(await page.locator('#editor').inputValue(), original);
+});
+
+test('plain text stays out of cross-batch numbering and dependent invalid groups stay pending', { timeout: 45000 }, async t => {
+  const server = await serve();
+  t.after(server.close);
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page } = await launchPage(browser, server.url, true);
+  await page.locator('#organize-numbering').click();
+  await page.locator('[onclick="saveNumberingSettings()"]').click();
+
+  const lines = Array(128).fill('');
+  lines.fill('- 其他条目', 0, 79);
+  lines.fill('- 备用条目', 92, 127);
+  const sample = { 85: '5. 第五章', 87: '5.2. 本批第一条', 88: '5.3. 上一条', 90: '投标费用',
+    91: '5.4. 本批后续条目', 92: '   - 依赖第 90 行的条目', 128: '5.5. 下一批条目' };
+  for (const [id, line] of Object.entries(sample)) lines[id - 1] = line;
+  const original = lines.join('\n');
+  await edit(page, original);
+
+  const decisions = [
+    { id: 85, kind: 'ordered', level: 1, group: 85, style: 'decimal-dot', start: 5, review: false },
+    { id: 87, kind: 'ordered', level: 2, group: 85, style: 'outline', start: 2, review: false },
+    { id: 88, kind: 'ordered', level: 2, group: 85, style: 'outline', start: 0, review: false },
+    { id: 91, kind: 'ordered', level: 2, group: 85, style: 'outline', start: 0, review: false },
+    { id: 92, kind: 'bullet', level: 3, group: 90, style: 'disc', start: 0, review: false },
+    { id: 128, kind: 'ordered', level: 2, group: 85, style: 'outline', start: 0, review: false }
+  ];
+  const batches = [];
+  await page.route('**/api/numbering', async route => {
+    const { action, candidates, previous } = route.request().postDataJSON();
+    if (action === 'status') {
+      await route.fulfill({ json: { provider: 'numbering.test', model: 'fixture-model', batchLimit: 40 } });
+      return;
+    }
+    const ids = candidates.map(item => item.id);
+    assert.ok(!ids.includes(90));
+    batches.push({ size: ids.length, previous: previous?.map(({ id, group }) => [id, group]) });
+    await route.fulfill({ json: { items: decisions.filter(item => ids.includes(item.id)) } });
+  });
+
+  await page.locator('#organize-numbering').click();
+  await page.locator('#numbering-apply').waitFor();
+  assert.deepEqual(batches, [
+    { size: 40, previous: undefined }, { size: 40, previous: undefined },
+    { size: 40, previous: [[85, 85]] }
+  ]);
+  assert.match(await page.locator('#numbering-status').textContent(), /5 处调整，1 处待确认/);
+  assert.equal(await page.locator('#toast').filter({ hasText: '结构无效' }).count(), 0);
+  await page.getByText('第 92 行 · 找不到可用的组首。').waitFor();
+  const label = text => page.locator('#preview [data-number-label]').evaluateAll((nodes, text) =>
+    nodes.find(node => [...node.childNodes].some(child => child.nodeType === Node.TEXT_NODE &&
+      child.textContent.trim() === text))?.dataset.numberLabel, text);
+  assert.equal(await label('本批后续条目'), '5.4');
+  assert.equal(await label('下一批条目'), '5.5');
+  assert.equal(await label('投标费用'), undefined);
+  await page.locator('#preview p').filter({ hasText: /^投标费用$/ }).waitFor();
+  assert.equal(await page.locator('#editor').inputValue(), original);
+
+  await page.locator('#numbering-apply').click();
+  const applied = (await page.locator('#editor').inputValue()).split('\n');
+  assert.equal(applied[89], original.split('\n')[89]);
+  assert.equal(applied[91], original.split('\n')[91]);
+  assert.match(applied[127], /md-number:v1/);
+});
+
+test('raw multilevel clauses share native Word numbering and preserve plain paragraphs in print', { timeout: 60000 }, async t => {
+  const server = await serve();
+  t.after(server.close);
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page } = await launchPage(browser, server.url);
+  const clauses = [
+    ['11.', '第十一章'], ['11.1.', '第一条'], ['11.1.1.', '第一款'], ['11.1.2.', '第二款'],
+    ['11.2.', '第二条'], ['11.2.1.', '另起第一款'], ['12.', '第十二章'], ['12.1.', '下章第一条'],
+    ['12.1.1.', '下章第一款']
+  ];
+  const lines = clauses.map(([number, body]) => `${number} ${body}`);
+  lines.splice(3, 0, '条款间的纯文字');
+  lines.splice(7, 0, '●明确的项目符号');
+  await edit(page, ['开头的纯文字', ...lines, '结尾的纯文字'].join('\n'));
+  const checkLayout = async root => {
+    assert.deepEqual(await root.locator('[data-number-label]').evaluateAll(nodes =>
+      nodes.map(node => node.dataset.numberLabel)), clauses.map(([number]) => number));
+    await root.locator('ul > li').filter({ hasText: /^明确的项目符号$/ }).waitFor();
+    for (const text of ['开头的纯文字', '条款间的纯文字', '结尾的纯文字']) {
+      assert.equal(await root.locator('p').filter({ hasText: text }).evaluate(p => p.closest('li')), null);
+    }
+  };
+  const preview = page.locator('#preview .markdown-body');
+  await preview.locator('[data-number-label="12.1.1."]').waitFor();
+  await checkLayout(preview);
+
+  const word = await download(page, () => page.evaluate(() => { void exportWord(); }));
+  const files = require('../vendor/fflate.js').unzipSync(word.bytes);
+  const paragraphs = Buffer.from(files['word/document.xml']).toString().match(/<w:p>.*?<\/w:p>/gs);
+  const paragraph = body => paragraphs.find(text => text.includes(`>${body}</w:t>`));
+  const numId = /<w:numId w:val="(\d+)"/;
+  const group = paragraph(clauses[0][1]).match(numId)?.[1];
+  assert.ok(group);
+  for (const [number, body] of clauses) {
+    const xml = paragraph(body);
+    assert.equal(xml.match(numId)?.[1], group);
+    assert.ok(xml.includes(`<w:ilvl w:val="${number.split('.').length - 2}"/>`));
+    assert.ok(!xml.includes(`>${number} `));
+    assertWordListIndent(xml);
+  }
+  assert.doesNotMatch(paragraph('条款间的纯文字'), /w:numPr/);
+  assert.ok(paragraph('明确的项目符号').match(numId));
+  assertWordListIndent(paragraph('明确的项目符号'));
+  const numbering = Buffer.from(files['word/numbering.xml']).toString();
+  assert.match(numbering, /<w:start w:val="11"\/>/);
+  assert.match(numbering, /<w:lvlText w:val="%1\.%2\.%3\."\/>/);
+
+  await page.evaluate(() => {
+    window.print = () => { window.printRequested = true; };
+    void exportPDF();
+  });
+  await page.waitForFunction(() => window.printRequested);
+  await page.emulateMedia({ media: 'print' });
+  const print = page.locator('#pdf-document .markdown-body');
+  await checkLayout(print);
+  assert.equal(await print.locator('[data-number-label="11.1.2."]').evaluate(li => getComputedStyle(li).listStylePosition), 'inside');
+  assert.equal(await print.locator('[data-source-outline]').evaluateAll(items =>
+    new Set(items.map(item => item.getBoundingClientRect().left)).size), 1);
+  assert.equal((await page.pdf()).subarray(0, 5).toString(), '%PDF-');
 });
 
 test('offline archive and attachment round-trip', { timeout: 60000 }, async t => {
@@ -814,11 +1054,11 @@ test('large preview scheduling, export snapshot, and page layout', { timeout: 60
     editor.dispatchEvent(new InputEvent('input', { bubbles: true }));
     return saveToLocal();
   });
-  assert.equal(await page.locator('#preview h1').textContent(), 'Previous');
+  assert.equal(await page.locator('#preview li').first().textContent(), 'Previous');
   const latest = await download(page, () => page.evaluate(() => exportFile()));
   assert.match(latest.bytes.toString(), /^# Latest/);
   await page.locator('#preview-pause').click();
-  await page.waitForFunction(() => document.querySelector('#preview h1')?.textContent === 'Latest');
+  await page.waitForFunction(() => document.querySelector('#preview li')?.textContent.trim() === 'Latest');
 
   await page.route('**/slow-image.png', async route => {
     await new Promise(resolve => setTimeout(resolve, 400));
@@ -882,88 +1122,109 @@ test('large preview scheduling, export snapshot, and page layout', { timeout: 60
 
 
 
-test('heading outline follows numbering preview, review, apply and undo', { timeout: 45000 }, async t => {
+test('list alignment, source line numbers and numbering undo in fullscreen', { timeout: 30000 }, async t => {
   const server = await serve();
   t.after(server.close);
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({ args: ['--window-size=1280,800'] });
   t.after(() => browser.close());
   const { page } = await launchPage(browser, server.url, true);
-  const outline = page.locator('#outline-button');
-  const source = page.getByLabel('大纲来源');
-  const list = page.locator('#outline-list');
-  const jump = page.locator('#outline-jump');
   const editor = page.locator('#editor');
-  const entries = () => list.locator('option').evaluateAll(options => options.map(option => option.textContent.trim()));
+  const lines = page.locator('.editor-line-mirror > span');
+  const preview = page.locator('#preview');
+  const legacy = '# <!-- md-number:v1:h:g1:1:outline:1 --> 上级\n## <!-- md-number:v1:h:g1:2:outline:1 --> 下级';
+  await edit(page, legacy);
+  assert.deepEqual(await preview.locator('li[data-number-label]').evaluateAll(items =>
+    items.map(item => item.dataset.numberLabel)), ['1', '1.1']);
+  assert.equal(await editor.inputValue(), legacy);
+
+  const source = '合同条款\n\n9. 第一个条目\n   - 下级项目\n     1. 第三级\n## 旧文档的二级标题';
+  await edit(page, source);
+  await page.waitForFunction(() => document.querySelectorAll('.editor-line-mirror > span').length === 6);
+  assert.equal(await lines.count(), 6);
+  assert.deepEqual(await lines.evaluateAll(rows => rows.map(row => row.dataset.line)), ['1', '2', '3', '4', '5', '6']);
+  assert.equal(await preview.locator('h1,h2,h3,h4,h5,h6').count(), 0);
+  assert.equal(await preview.locator('p').first().textContent(), '合同条款');
+  assert.equal(await preview.locator('ol > li > ul > li > ol > li').textContent(), '第三级');
+  const leftEdges = await preview.locator('li').evaluateAll(items =>
+    items.map(item => item.getBoundingClientRect().left));
+  assert.equal(new Set(leftEdges).size, 1);
+  assert.ok(await preview.locator('li').evaluateAll(items =>
+    items.every(item => getComputedStyle(item).fontSize === '16px')));
+  assert.equal(await page.locator('#outline-button, #outline-modal, #template-modal, #font-size-toggle').count(), 0);
+
+  const wrapped = '宽文字带换行'.repeat(100) + '\n\n' + Array.from({ length: 110 }, (_, i) => '第 ' + i + ' 项').join('\n');
+  await editor.fill(wrapped);
+  await lines.last().waitFor();
+  await page.waitForFunction(() => document.querySelector('[data-line="112"]'));
+  assert.equal(await lines.first().evaluate(line => line.clientHeight > line.nextElementSibling.clientHeight * 2), true);
+  const heights = await editor.evaluate(el => {
+    const mirror = document.querySelector('.editor-line-mirror');
+    return { editor: el.scrollHeight, mirror: mirror.scrollHeight, widths: [el.clientWidth, mirror.clientWidth] };
+  });
+  assert.ok(Math.abs(heights.editor - heights.mirror) <= 2,
+    'Line mirror must wrap at the same width as the textarea ' + JSON.stringify(heights));
+  await editor.evaluate(el => { el.scrollTop = 500; });
+  await page.waitForFunction(() => {
+    const el = document.getElementById('editor');
+    const { top } = document.querySelector('.editor-line-mirror').getBoundingClientRect();
+    return Math.abs(top + el.scrollTop - el.getBoundingClientRect().top) < 1;
+  });
+  await edit(page, source);
+  await page.waitForFunction(() => document.querySelectorAll('.editor-line-mirror > span').length === 6);
+
+  await page.locator('#view-dropdown > button').click();
+  await page.locator('[data-i18n="systemFullscreen"]').click();
+  await page.waitForFunction(() => Boolean(document.fullscreenElement));
+  const toolbar = page.locator('.editor-toolbar');
+  assert.ok(await toolbar.locator(':scope > div > button, :scope > div > .dropdown > button')
+    .evaluateAll(buttons => {
+      const centers = buttons.map(button => {
+        const { top, height, right } = button.getBoundingClientRect();
+        return { y: top + height / 2, right };
+      });
+      return centers.every(({ y, right }) => Math.abs(y - centers[0].y) < 1 && right <= innerWidth);
+    }));
+  await page.evaluate(() => document.exitFullscreen());
 
   await page.locator('#organize-numbering').click();
   await page.locator('[onclick="saveNumberingSettings()"]').click();
-  let finishAnalysis;
-  let startAnalysis;
-  const started = new Promise(resolve => { startAnalysis = resolve; });
-  const analysis = new Promise(resolve => { finishAnalysis = resolve; });
   await page.route('**/api/numbering', async route => {
-    const payload = route.request().postDataJSON();
-    if (payload.action !== 'analyze') {
-      await route.fulfill({ json: { provider: 'numbering.test', model: 'fixture-model' } });
-      return;
-    }
-    startAnalysis();
-    await analysis;
-    const id = title => payload.candidates.find(row => row.excerpt === title).id;
-    const heading = (title, level) => ({
-      id: id(title), kind: 'heading', level, group: id('Start'), style: 'outline', start: 0, review: false
-    });
-    await route.fulfill({ json: { items: [heading('Start', 1), heading('Target', 2), heading('Candidate', 2)] } });
+    const { action, candidates } = route.request().postDataJSON();
+    if (action !== 'analyze') return route.fulfill({ json: { provider: 'fixture', model: 'test' } });
+    assert.deepEqual(candidates.map(row => row.excerpt), ['第一个条目', '下级项目', '第三级']);
+    assert.ok(candidates.every(row => ['ordered', 'bullet'].includes(row.kind)));
+    const styles = ['upper-alpha', 'circle', 'outline'];
+    await route.fulfill({ json: { items: candidates.map((row, index) => ({
+      id: row.id, kind: row.kind, level: index + 1,
+      group: candidates[0].id,
+      style: styles[index], start: 0, review: false
+    })) } });
   });
-  const original = '# 9. Start\n\n' + 'Wrapped content '.repeat(600) +
-    '\n\n<h2>HTML heading</h2>\n\n## 9.4 Target\n\n7. Candidate\n\n' + 'More content '.repeat(500);
-  await edit(page, original);
   await page.locator('#organize-numbering').click();
-  await started;
-  await outline.click();
-  assert.equal(await source.inputValue(), 'original');
-  assert.equal(await source.isDisabled(), true);
-  assert.deepEqual(await entries(), ['9. Start · 1', '9.4 Target · 7']);
-  finishAnalysis();
-  await page.waitForFunction(() => document.querySelector('#outline-source').value === 'preview');
-  assert.deepEqual((await entries()).slice(0, 3), ['1 Start', 'HTML heading', '1.1 Target']);
-  await list.selectOption({ label: '   1.1 Target' });
-  await jump.click();
-  await page.waitForFunction(() => {
-    const pane = document.querySelector('#preview');
-    const heading = pane.querySelector('h2[data-number-label="1.1"]');
-    return pane.scrollTop > 0 && Math.abs(heading.getBoundingClientRect().top - pane.getBoundingClientRect().top - 12) < 2;
-  });
-  assert.equal(await editor.inputValue(), original);
-
-  await page.locator('#numbering-changes summary').click();
-  const candidateLine = original.split('\n').findIndex(line => line.startsWith('7. Candidate')) + 1;
-  const candidate = page.locator('#numbering-choice-' + candidateLine);
-  await candidate.selectOption('heading');
-  await page.locator('#editor-collapse-btn').click();
-  assert.equal(await outline.isEnabled(), true);
-  await outline.click();
-  assert.equal(await source.inputValue(), 'preview');
-  assert.ok((await entries()).some(entry => entry.endsWith(' Candidate')));
-  await source.selectOption('original');
-  assert.deepEqual(await entries(), ['9. Start · 1', '9.4 Target · 7']);
-  await list.selectOption('1');
-  await list.press('Enter');
-  assert.equal(await editor.isVisible(), true);
-  assert.equal(await editor.evaluate(el => el.selectionStart), original.indexOf('## 9.4 Target'));
-  assert.ok(await editor.evaluate(el => el.scrollTop > 100));
-  assert.equal(await editor.inputValue(), original);
-
-  await page.locator('#numbering-apply').click();
-  await outline.click();
-  assert.equal(await source.inputValue(), 'original');
-  assert.equal(await source.isDisabled(), true);
-  assert.ok((await entries()).includes('1.1 Target · 7'));
-  assert.ok((await entries()).some(entry => entry.endsWith(' Candidate · ' + candidateLine)));
-  await page.keyboard.press('Escape');
-  await page.locator('[onclick="undo()"]').click();
-  await outline.click();
-  assert.deepEqual(await entries(), ['9. Start · 1', '9.4 Target · 7']);
+  const apply = page.locator('#numbering-apply');
+  const revert = page.locator('#numbering-undo');
+  await apply.waitFor();
+  assert.ok(await revert.isDisabled());
+  assert.equal(await revert.evaluate(el => el.nextElementSibling.id), 'numbering-collapse');
+  assert.deepEqual(await page.locator('[data-numbering-group]').evaluateAll(groups =>
+    groups.map(group => group.dataset.numberingGroup)), ['ordered:1', 'bullet:2', 'ordered:3']);
+  const labels = () => preview.locator('[data-number-label]').evaluateAll(nodes =>
+    nodes.map(node => node.dataset.numberLabel));
+  assert.deepEqual(await labels(), ['A.', '○', '1.1.1']);
+  assert.equal(await editor.inputValue(), source);
+  await apply.click();
+  assert.ok(await revert.isEnabled());
+  assert.notEqual(await editor.inputValue(), source);
+  await revert.click();
+  assert.equal(await editor.inputValue(), source);
+  assert.deepEqual(await labels(), []);
+  assert.ok(await revert.isDisabled());
+  assert.ok(await apply.isVisible());
+  await apply.click();
+  await editor.press('End');
+  await page.keyboard.insertText(' 附注');
+  assert.ok(await revert.isDisabled());
+  assert.match(await editor.inputValue(), /附注/);
 });
 
 test('workspace and writing tools in Chromium and Firefox', { timeout: 90000 }, async t => {
@@ -978,41 +1239,6 @@ test('workspace and writing tools in Chromium and Firefox', { timeout: 90000 }, 
       const text = '# 中文\n\n## Repeat\n\n~~~md\n# Ignored\n~~~\n\n## Repeat\n\nSetext\n------\n\nalpha alpha';
       await edit(page, text);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), 390);
-      const toolbar = page.locator('.editor-toolbar');
-      const controls = toolbar.locator('[onclick="undo()"], #outline-button, [onclick="openTemplates()"]');
-      assert.equal(await controls.count(), 3);
-      assert.ok(await controls.evaluateAll(buttons => {
-        const centers = buttons.map(button => {
-          const { top, height } = button.getBoundingClientRect();
-          return top + height / 2;
-        });
-        return Math.max(...centers) - Math.min(...centers) < 1;
-      }));
-      await page.locator('[onclick="openOutline()"]').focus();
-      await page.keyboard.press('Enter');
-      assert.equal(await page.locator('#outline-list option').count(), 4);
-      await page.locator('#outline-list').selectOption('2');
-      await page.locator('#outline-list').focus();
-      await page.keyboard.press('Enter');
-      assert.equal(await page.locator('#editor').evaluate(el => el.selectionStart), text.lastIndexOf('## Repeat'));
-      await page.locator('[onclick="openTemplates()"]').click();
-      assert.match(await page.locator('#template-content').inputValue(), /^# 项目名称\n\n## 简介/);
-      await page.locator('#template-list').selectOption('technical');
-      assert.match(await page.locator('#template-content').inputValue(), /^# 技术文档\n\n## 背景/);
-      await page.locator('#template-list').selectOption('meeting');
-      const preview = await page.locator('#template-content').inputValue();
-      assert.equal(preview, '# 会议纪要\n\n## 议程\n\n## 决定\n\n## 行动事项\n\n');
-      await page.keyboard.press('Escape');
-      assert.equal(await page.evaluate(() => draft.text), text);
-      const selected = text.lastIndexOf('alpha');
-      await page.locator('#editor').evaluate((el, start) => el.setSelectionRange(start, start + 5), selected);
-      await page.locator('[onclick="openTemplates()"]').click();
-      await page.locator('#template-modal [data-i18n="insert"]').click();
-      assert.equal(await page.locator('#editor').inputValue(), text.slice(0, selected) + '\n\n' + preview);
-      assert.equal(await page.locator('#preview h1').last().textContent(), '会议纪要');
-      await page.evaluate(() => undo());
-      assert.equal(await page.evaluate(() => draft.text), text);
-
       await page.evaluate(() => openFindModal());
       await page.locator('#find-input').fill('alpha');
       await page.locator('#replace-input').fill('beta');

@@ -24,7 +24,7 @@ class NumberingServiceTest(unittest.TestCase):
                 test.upstream_requests.append((request, self.headers.get('Authorization')))
                 inputs = json.loads(request['messages'][1]['content'])
                 candidate = inputs['candidates'][0]
-                item = {'id': candidate['id'], 'kind': 'heading', 'level': 1, 'group': candidate['id'],
+                item = {'id': candidate['id'], 'kind': 'ordered', 'level': 1, 'group': candidate['id'],
                         'style': 'outline', 'start': 0, 'review': False}
                 if inputs.get('previous'):
                     item.update(group=inputs['previous'][0]['group'], level=candidate['headingLevel'])

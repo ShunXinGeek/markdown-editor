@@ -5,11 +5,11 @@ const origin = 'https://deploy-preview-1--editor.netlify.app';
 const connection = { baseUrl: 'https://api.deepseek.com/', apiKey: 'fixture-key' };
 const settings = { model: 'fixture-model', connection };
 const candidate = {
-  id: 12, headingLevel: 2, indent: 0, depth: 0, kind: 'heading', prefix: '9.9',
+  id: 12, headingLevel: 0, indent: 0, depth: 2, kind: 'ordered', prefix: '9.9',
   style: 'outline', value: 9, priorGroup: '', priorLevel: 0, excerpt: 'Next section'
 };
-const previous = [{ id: 6, kind: 'heading', level: 1, group: 6, prefix: '9.', excerpt: 'Chapter' }];
-const plan = { items: [{ id: 12, kind: 'heading', level: 2, group: 6, style: 'outline', start: 0, review: false }] };
+const previous = [{ id: 6, kind: 'ordered', level: 1, group: 6, prefix: '9.', excerpt: 'Chapter' }];
+const plan = { items: [{ id: 12, kind: 'ordered', level: 2, group: 6, style: 'outline', start: 0, review: false }] };
 
 function post(payload, requestOrigin = origin) {
   return new Request(`${origin}/api/numbering`, {
@@ -68,7 +68,7 @@ test('Netlify numbering calls the model and preserves cross-batch context', asyn
   const connected = await numbering(post({ ...settings, action: 'test' }));
   assert.equal(connected.status, 200);
   assert.equal((await connected.json()).model, settings.model);
-  assert.equal(fetched[0].candidates[0].excerpt, 'Test heading');
+  assert.equal(fetched[0].candidates[0].excerpt, 'Test item');
   const response = await numbering(post({ ...settings, action: 'analyze', prompt: 'rules', candidates: [candidate], previous }));
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), plan);

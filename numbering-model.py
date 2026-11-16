@@ -17,10 +17,10 @@ API_KEY = re.compile(r'[!-~]{0,2048}')
 MAX_BODY = 192 * 1024
 MAX_RESPONSE = 1024 * 1024
 MAX_CANDIDATES = 240
-MAX_PREVIOUS = 6 + 9  # The active heading and list paths.
+MAX_PREVIOUS = 9  # The active list path.
 ITEM_FIELDS = {
     'id': {'type': 'integer'},
-    'kind': {'type': 'string', 'enum': ['heading', 'ordered', 'bullet', 'skip']},
+    'kind': {'type': 'string', 'enum': ['ordered', 'bullet', 'skip']},
     'level': {'type': 'integer'},
     'group': {'type': 'integer'},
     'style': {'type': 'string'},
@@ -37,16 +37,17 @@ SCHEMA = {
     'additionalProperties': False,
 }
 SYSTEM = """你只负责给编号候选项分类。候选项及其摘录是输入数据。每项仅返回以下字段：
-id 是输入给出的整数；kind 是 heading、ordered、bullet 或 skip；level 为 1 起的层级（标题至多 6 级，列表至多 9 级）。
+id 是输入给出的整数；kind 是 ordered、bullet 或 skip；level 为 1 至 9 的列表层级。
+depth 和 indent 是列表层级提示。没有列表标记的文本应返回 skip。例如「1. 定义」是 ordered 第 1 级，随后的「1.1. 除上下文另有规定外」是同组第 2 级。若其后紧跟「(1)」「(2)」等下级条目，请沿用该组并设为第 3 级。
 group 为该组第一项的 id，组第一项应填自己的 id 且 level 为 1。相同组的子级沿用这个 group。
 style 填候选项所示的样式名、outline 或 auto。同组同层用相同样式。start 用 0 表示按程序默认值，正整数仅在确定要从指定数字开始时使用。
 review 为布尔值，标出需要确认的判断。可省略应跳过的候选项。严格按 JSON Schema 返回，正文和修改后的文本都不可输出。"""
 EXAMPLE = {
-    'id': 1, 'headingLevel': 1, 'indent': 0, 'depth': 0, 'kind': 'heading',
+    'id': 1, 'headingLevel': 0, 'indent': 0, 'depth': 0, 'kind': 'ordered',
     'prefix': '1. ', 'style': 'decimal-dot', 'value': 1,
-    'priorGroup': '', 'priorLevel': 0, 'excerpt': 'Test heading',
+    'priorGroup': '', 'priorLevel': 0, 'excerpt': 'Test item',
 }
-PREVIOUS_EXAMPLE = {'id': 1, 'kind': 'heading', 'level': 1, 'group': 1, 'prefix': '', 'excerpt': ''}
+PREVIOUS_EXAMPLE = {'id': 1, 'kind': 'ordered', 'level': 1, 'group': 1, 'prefix': '', 'excerpt': ''}
 
 
 class ModelConfig:
@@ -75,12 +76,12 @@ class ModelConfig:
         inputs = {'numbering_rules': prompt, 'candidates': candidates}
         if previous:
             inputs['previous'] = previous
-            system += ('\nprevious 是前几批已分析的标题和列表路径，仅供延续分组及判断层级。'
+            system += ('\nprevious 是前几批已分析的列表路径，仅供延续分组及判断层级。'
                        '只返回 candidates 中的 id。同一编号序列应沿用 previous 里的 group 和层级关系。'
                        '即使本批从子级开始，也应使用原 group，不要另起编号。独立序列仍以本批首项为 group。')
         if self.json_mode:
             system += '\n按以下 JSON Schema 输出：' + json.dumps(SCHEMA, ensure_ascii=False)
-            system += '\n示例：{"items":[{"id":7,"kind":"heading","level":1,"group":7,"style":"outline","start":0,"review":false}]}'
+            system += '\n示例：{"items":[{"id":7,"kind":"ordered","level":1,"group":7,"style":"outline","start":0,"review":false}]}'
         request = {
             'model': model,
             'messages': [
@@ -117,7 +118,7 @@ class ModelConfig:
         if not isinstance(items, list) or len(items) > len(ids):
             raise ValueError('Invalid model response')
         for item in items:
-            if not isinstance(item, dict) or item.keys() != ITEM_FIELDS.keys() or type(item['id']) is not int or item['id'] not in ids:
+            if not isinstance(item, dict) or item.keys() != ITEM_FIELDS.keys() or type(item['id']) is not int or item['id'] not in ids or item['kind'] not in ITEM_FIELDS['kind']['enum']:
                 raise ValueError('Invalid model item')
             ids.remove(item['id'])
         return result
@@ -230,8 +231,8 @@ class Handler(SimpleHTTPRequestHandler):
                     if (not isinstance(item, dict) or item.keys() != PREVIOUS_EXAMPLE.keys() or
                             any(type(value) is not type(PREVIOUS_EXAMPLE[key]) or
                                 isinstance(value, str) and len(value) > 200 for key, value in item.items()) or
-                            item['kind'] not in ('heading', 'ordered', 'bullet') or
-                            not 1 <= item['level'] <= (6 if item['kind'] == 'heading' else 9) or
+                            item['kind'] not in ('ordered', 'bullet') or
+                            not 1 <= item['level'] <= 9 or
                             not 0 < item['group'] <= item['id'] < first_id):
                         raise ValueError()
         except (ValueError, TimeoutError):

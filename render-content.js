@@ -31,8 +31,10 @@ const markdownContent = (() => {
       return container;
     }
     const nonce = Math.random().toString(36).slice(2);
+    const numberNonce = 'md-number-token-' + nonce + '-';
+    const numbering = editorNumbering.annotate(text, numberNonce);
     const formulas = [];
-    const source = text.split(/(\x60{3,}[\s\S]*?\x60{3,}|~{3,}[\s\S]*?~{3,}|\x60+[^\n]*?\x60+)/g).map((part, index) =>
+    const source = numbering.source.split(/(\x60{3,}[\s\S]*?\x60{3,}|~{3,}[\s\S]*?~{3,}|\x60+[^\n]*?\x60+)/g).map((part, index) =>
       index % 2 ? part : part.replace(/\$\$[\s\S]+?\$\$|(?<!\\)\$[^$\n]+?\$/g, formula => {
         const token = 'MATH' + nonce + 'x' + formulas.length + 'END';
         formulas.push(formula);
@@ -40,9 +42,7 @@ const markdownContent = (() => {
       })
     ).join('');
     const listNonce = 'md-list-token-' + nonce + '-';
-    const numberNonce = 'md-number-token-' + nonce + '-';
-    const numbering = editorNumbering.annotate(source, numberNonce);
-    const lists = editorListFormat.normalize(numbering.source, listNonce);
+    const lists = editorListFormat.normalize(source, listNonce);
     const html = marked.parse(lists.source, { gfm: true, breaks: true });
     container.append(DOMPurify.sanitize(html, {
       ALLOWED_TAGS: tags, ALLOWED_ATTR: attributes, ALLOW_DATA_ATTR: false,
@@ -50,6 +50,13 @@ const markdownContent = (() => {
     }));
     editorListFormat.restoreLists(container, listNonce, lists.rows);
     editorNumbering.decorate(container, numberNonce, numbering.rows);
+    for (const heading of container.querySelectorAll('h1,h2,h3,h4,h5,h6')) {
+      const list = document.createElement('ul');
+      const item = document.createElement('li');
+      item.append(...heading.childNodes);
+      list.append(item);
+      heading.replaceWith(list);
+    }
     const font = editorListFormat.font(text);
     if (font) container.style.fontFamily = '"' + font + '", sans-serif';
     for (const link of container.querySelectorAll('a[href],img[src]')) {

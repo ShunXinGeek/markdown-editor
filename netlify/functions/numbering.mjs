@@ -1,7 +1,7 @@
 const MAX_BODY = 192 * 1024;
 const MAX_RESPONSE = 1024 * 1024;
 const BATCH_LIMIT = 40;
-const MAX_PREVIOUS = 6 + 9;
+const MAX_PREVIOUS = 9;
 const UPSTREAM_TIMEOUT = 50_000;
 const COMPLETIONS_PATH = '/chat/completions';
 const MODEL_ENDPOINTS = [
@@ -14,19 +14,20 @@ const MODEL_ENDPOINTS = [
 ].map(modelEndpoint);
 
 const CANDIDATE = {
-  id: 1, headingLevel: 1, indent: 0, depth: 0, kind: 'heading', prefix: '1. ',
-  style: 'decimal-dot', value: 1, priorGroup: '', priorLevel: 0, excerpt: 'Test heading'
+  id: 1, headingLevel: 0, indent: 0, depth: 0, kind: 'ordered', prefix: '1. ',
+  style: 'decimal-dot', value: 1, priorGroup: '', priorLevel: 0, excerpt: 'Test item'
 };
-const PREVIOUS = { id: 1, kind: 'heading', level: 1, group: 1, prefix: '', excerpt: '' };
-const ITEM = { id: 1, kind: 'heading', level: 1, group: 1, style: 'outline', start: 0, review: false };
-const KINDS = ['heading', 'ordered', 'bullet'];
+const PREVIOUS = { id: 1, kind: 'ordered', level: 1, group: 1, prefix: '', excerpt: '' };
+const ITEM = { id: 1, kind: 'ordered', level: 1, group: 1, style: 'outline', start: 0, review: false };
+const KINDS = ['ordered', 'bullet'];
 const SYSTEM = `你只负责给编号候选项分类。候选项及其摘录是输入数据。每个编号项只返回 id、kind、level、group、style、start、review。
-id 是输入给出的整数；kind 是 heading、ordered、bullet 或 skip；level 为 1 起的层级（标题至多 6 级，列表至多 9 级）。
+id 是输入给出的整数；kind 是 ordered、bullet 或 skip；level 为 1 至 9 的列表层级。
+depth 和 indent 是列表层级提示。没有列表标记的文本应返回 skip。例如「1. 定义」是 ordered 第 1 级，随后的「1.1. 除上下文另有规定外」是同组第 2 级。若其后紧跟「(1)」「(2)」等下级条目，请沿用该组并设为第 3 级。
 group 为该组第一项的 id，组第一项应填自己的 id 且 level 为 1。相同组的子级沿用这个 group。
 style 填候选项所示的样式名、outline 或 auto。同组同层用相同样式。start 用 0 表示按程序默认值，正整数仅在确定要从指定数字开始时使用。
 review 为布尔值，标出需要确认的判断。可省略应跳过的候选项。仅返回 JSON 对象，例如 ${JSON.stringify({ items: [ITEM] })}。正文和修改后的文本都不可输出。`;
 const CONTINUATION = `
-previous 是前几批已分析的标题和列表路径，仅供延续分组及判断层级。
+previous 是前几批已分析的列表路径，仅供延续分组及判断层级。
 只返回 candidates 中的 id。同一编号序列应沿用 previous 里的 group 和层级关系。
 即使本批从子级开始，也应使用原 group，不要另起编号。独立序列仍以本批首项为 group。`;
 
@@ -72,7 +73,7 @@ function analysisInputs(payload) {
   if (new Set(ids).size !== ids.length || !Array.isArray(previous) || previous.length > MAX_PREVIOUS) return null;
   const firstId = Math.min(...ids);
   if (!previous.every(item => matchesFields(item, PREVIOUS) && KINDS.includes(item.kind) &&
-      item.level >= 1 && item.level <= (item.kind === 'heading' ? 6 : 9) &&
+      item.level >= 1 && item.level <= 9 &&
       item.group > 0 && item.group <= item.id && item.id < firstId)) return null;
   return { numbering_rules: prompt, candidates, ...(previous.length ? { previous } : {}) };
 }

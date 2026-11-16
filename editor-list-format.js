@@ -72,7 +72,7 @@ const editorListFormat = (() => {
   }
 
   function row(line) {
-    const match = /^([ \t]*)(?:([-+*•●○◦▪■–—◆➤✓])(?=[ \t]|$)|(\([^)]+\)|（[^）]+）|[^ \t.．、)）]+[.．、)）]))([ \t]*)(.*)$/.exec(line);
+    const match = /^([ \t]*)(?:([•●○◦▪■◆➤✓]|[-+*–—](?=[ \t]|$))|(\([^)]+\)|（[^）]+）|[^ \t.．、)）]+[.．、)）]))([ \t]*)(.*)$/.exec(line);
     if (!match) return null;
     const [, whitespace, bullet, number, space, tail] = match;
     const indent = [...whitespace].reduce((count, character) => count + (character === '\t' ? 4 - count % 4 : 1), 0);
@@ -181,12 +181,12 @@ const editorListFormat = (() => {
       for (const [offset, line] of items.entries()) {
         const item = line.item;
         const adjacent = previous?.index + 1 === line.index || items[offset + 1]?.index === line.index + 1;
-        if (item.romanId && item.marker.endsWith('.') && !adjacent && !seenStyles.has(item.id) &&
-            lastByStyle.get(item.indent + item.id) === line.index) continue;
         if (item.indent >= codeIndent) {
           line.protected = true;
           continue;
         }
+        if (item.romanId && item.marker.endsWith('.') && !adjacent && !seenStyles.has(item.id) &&
+            lastByStyle.get(item.indent + item.id) === line.index) continue;
         codeIndent = Infinity;
         while (stack.length && stack.at(-1).indent > item.indent) stack.pop();
         const last = stack.at(-1);
@@ -323,15 +323,18 @@ const editorListFormat = (() => {
       let number = list.start;
       for (const item of list.children) {
         if (item.tagName !== 'LI') continue;
-        const label = style.symbol || style.prefix + markerNumber(number++, style.css) + style.suffix;
+        const label = item.dataset.numberLabel || item.dataset.sourceNumberLabel || style.symbol ||
+          style.prefix + markerNumber(number, style.css) + style.suffix;
+        number++;
         const marker = document.createElement('span');
-        marker.textContent = label;
+        marker.textContent = label + ' ';
         marker.setAttribute('aria-hidden', 'true');
-        Object.assign(marker.style, { position: 'absolute', insetInlineEnd: '100%', top: '0',
-          marginInlineEnd: '0.35em', whiteSpace: 'nowrap' });
-        item.style.position = 'relative';
         item.style.listStyleType = 'none';
-        item.prepend(marker);
+        delete item.dataset.numberLabel;
+        delete item.dataset.sourceNumberLabel;
+        const paragraph = item.firstElementChild;
+        if (paragraph?.tagName === 'P') paragraph.prepend(marker);
+        else item.prepend(marker);
       }
     }
   }

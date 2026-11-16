@@ -247,6 +247,14 @@
       line-height: 1.2;
     }
     .font-menu { width: 224px; }
+    .numbering-review select {
+      padding: 4px 6px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--panel-bg);
+      color: var(--text);
+      font: inherit;
+    }
     .font-menu button[aria-pressed='true'] { background: var(--accent-soft); color: var(--accent); }
     .font-menu form { display: flex; gap: 4px; padding: 6px 2px 2px; border-top: 1px solid var(--border); }
     .font-menu input {
@@ -270,8 +278,8 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
-      padding: 8px 14px;
+      gap: 6px;
+      padding: 6px 10px;
       background: var(--bg);
       border-bottom: 1px solid var(--border);
       flex-wrap: wrap;
@@ -280,7 +288,7 @@
     .editor-toolbar .editor-actions {
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 2px;
       flex-wrap: wrap;
       padding: 4px;
       background: var(--surface);
@@ -288,6 +296,7 @@
       border-radius: var(--radius);
     }
     .editor-toolbar button {
+      gap: 4px;
       padding: 5px;
       border-radius: var(--radius-sm);
     }
@@ -451,22 +460,60 @@
     .resizing .resizer {
       transition: none !important;
     }
-    .editor-pane textarea {
+    .editor-input {
+      display: flex;
       flex: 1;
-      width: 100%;
-      padding: 28px 32px;
-      border: none;
-      outline: none;
-      resize: none;
-      font-family: var(--font-editor);
-      font-size: 16px;
-      line-height: 1.8;
-      background: var(--panel-bg);
-      color: var(--text);
-      caret-color: var(--accent);
+      min-height: 0;
+    }
+    .editor-pane.collapsed .editor-input { display: none; }
+    .editor-pane textarea, .editor-line-mirror {
+      box-sizing: border-box;
+      padding: 28px 32px 28px 12px;
+      font: 16px/28.8px var(--font-editor);
       tab-size: 4;
       white-space: pre-wrap;
       word-break: break-all;
+      overflow-wrap: break-word;
+    }
+    .editor-pane textarea {
+      flex: 1;
+      min-width: 0;
+      border: none;
+      outline: none;
+      resize: none;
+      background: var(--panel-bg);
+      color: var(--text);
+      caret-color: var(--accent);
+    }
+    .editor-line-numbers {
+      position: relative;
+      flex: 0 0 calc(var(--line-number-digits, 2) * 1ch + 16px);
+      overflow: hidden;
+      background: var(--bg);
+      border-inline-end: 1px solid var(--border);
+      font: 12px var(--font-mono);
+      user-select: none;
+    }
+    .editor-line-mirror {
+      position: absolute;
+      inset-inline-start: 100%;
+      color: transparent;
+    }
+    .editor-line-mirror > span {
+      display: block;
+      position: relative;
+      min-height: 28.8px;
+    }
+    .editor-line-mirror > span::before {
+      content: attr(data-line);
+      position: absolute;
+      inset-block-start: 0;
+      inset-inline-end: calc(100% + 19px);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      white-space: nowrap;
+      word-break: normal;
     }
     .preview-pane {
       border-left: 1px solid var(--border);
@@ -488,12 +535,40 @@
       margin: 0 auto;
       padding: 32px 40px;
     }
-    .numbering-review { padding: 8px 14px; border-bottom: 1px solid var(--border); background: var(--surface); }
-    .numbering-review-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .numbering-review details { margin-top: 6px; }
-    .numbering-review ul { max-height: 10rem; overflow: auto; padding-left: 22px; margin: 8px 0 0; }
-    .numbering-review li { margin: 4px 0; }
-    .numbering-review select { margin-left: 8px; }
+    .numbering-review {
+      flex: 0 0 auto;
+      height: var(--numbering-height, 32vh);
+      max-height: 48%;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+    }
+    .numbering-review:not([hidden]) { display: flex; flex-direction: column; }
+    .numbering-resizer { flex: 0 0 10px; cursor: ns-resize; touch-action: none; display: grid; place-items: center; }
+    .numbering-resizer::after { content: ''; width: 32px; height: 3px; border-radius: 3px; background: var(--border); }
+    .numbering-resizer:hover::after, .numbering-resizer:focus-visible::after { background: var(--accent); }
+    .numbering-review-actions { display: flex; align-items: center; gap: 6px 12px; flex-wrap: wrap; padding: 0 14px 6px; }
+    .numbering-review-actions button { padding: 4px 10px; }
+    #numbering-status { flex: 1 1 280px; font-size: 13px; }
+    .numbering-groups { flex: 1; min-height: 0; overflow: auto; padding: 0 14px 8px; }
+    .numbering-group { padding: 6px 0; border-top: 1px solid var(--border); }
+    .numbering-group-controls {
+      display: grid;
+      grid-template-columns: minmax(9em, .85fr) minmax(9em, 1fr) minmax(10em, 1fr) minmax(10em, 1.2fr);
+      gap: 6px 16px;
+      align-items: center;
+    }
+    .numbering-group label { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+    .numbering-group select { max-width: 100%; }
+    .numbering-group ul { margin: 6px 0; padding-left: 24px; }
+    .numbering-group li { margin: 4px 0; }
+    .numbering-group li select { margin: 0 8px; }
+    .numbering-group-controls > button { justify-self: start; text-align: start; padding: 4px 8px; }
+    .numbering-group-controls > button::before { content: '▸'; margin-inline-end: 6px; }
+    .numbering-group-controls > button[aria-expanded='true']::before { content: '▾'; }
+    .numbering-example { overflow-wrap: anywhere; color: var(--text-muted); }
+    @media (max-width: 740px) {
+      .numbering-group-controls { grid-template-columns: 1fr; }
+    }
     /* 预览区源码编辑 */
     .preview-source {
       flex: 1;
@@ -550,14 +625,13 @@
       color: var(--text);
       letter-spacing: -0.01em;
     }
-    .preview-content h1 { font-size: 2.25em; font-weight: 700; letter-spacing: -0.02em; }
-    .preview-content h2 { font-size: 1.75em; }
-    .preview-content h3 { font-size: 1.4em; }
-    .preview-content h4 { font-size: 1.15em; }
+    .preview-content h1 { font-weight: 700; letter-spacing: -0.02em; }
     .preview-content p { margin: 0 0 20px; color: var(--text); }
     .preview-content a { color: var(--accent); text-decoration: none; }
     .preview-content a:hover { text-decoration: underline; }
-    .preview-content ul, .preview-content ol { margin: 0 0 20px; padding-left: 1.8em; }
+    .preview-content .markdown-body { font-size: var(--md-document-size, 12pt); }
+    .preview-content ul, .preview-content ol { margin: 0 0 20px; padding-inline-start: 0; list-style-position: inside; }
+    .preview-content li > p:first-child { display: inline; }
     .preview-content li { margin: 6px 0; }
     .preview-content code {
       background: var(--surface);
@@ -779,6 +853,12 @@
       clip-path: inset(50%);
     }
     :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    @media (max-width: 1580px) {
+      .editor-toolbar button[data-i18n-title] > span[data-i18n] { display: none; }
+    }
+    @media (min-width: 1000px) {
+      .editor-toolbar #organize-numbering > span { display: inline; }
+    }
     /* 移动端 */
     @media (max-width: 768px) {
       .top-bar { padding: 8px; gap: 6px; }
@@ -1027,13 +1107,7 @@
       margin-right: 6px;
       vertical-align: middle;
     }
-    .preview-content li.task-item {
-      list-style: none;
-      margin-left: -1.4em;
-    }
-    .preview-content ul.task-list {
-      padding-left: 1.8em;
-    }
+    .markdown-body li:has(> input[type="checkbox"], > p > input[type="checkbox"]) { list-style: none; }
     /* 工具栏下拉按钮文字 */
     .top-bar button, .editor-toolbar button { white-space: nowrap; }
     /* 下拉菜单进入动画 */
@@ -1050,8 +1124,12 @@
       #pdf-document pre { white-space: pre-wrap; }
       #pdf-document table { width: 100%; border-collapse: collapse; }
       #pdf-document tr, #pdf-document img { break-inside: avoid; }
+      #pdf-document li:is([data-number-label], [data-source-number-label]) { list-style-position: inside; }
+      #pdf-document li:is([data-number-label], [data-source-number-label]) > p:first-child { display: inline; }
+      #pdf-document ol:has(> li[data-source-outline]) { padding-inline-start: 0; }
+      #pdf-document ol:has(> li[data-source-outline]) > li { list-style-position: inside; }
       .top-bar, .editor-toolbar, .statusbar, .editor-pane, .resizer, .preview-pane .pane-header,
-      .preview-source, .modal-overlay, .toast, .icon-sprite {
+      .preview-source, .numbering-review, .modal-overlay, .toast, .icon-sprite {
         display: none !important;
       }
       .preview-pane {
@@ -1181,8 +1259,6 @@
       <div class="format-group">
         <button onclick="undo()" data-i18n-title="undoTitle" title="撤销 Ctrl+Z"><svg class="icon"><use href="#icon-undo"></use></svg></button>
         <button onclick="redo()" data-i18n-title="redoTitle" title="重做 Ctrl+Y / Ctrl+Shift+Z"><svg class="icon"><use href="#icon-redo"></use></svg></button>
-        <button type="button" id="outline-button" onclick="openOutline()" data-i18n="writingOutline">标题大纲</button>
-        <button type="button" onclick="openTemplates()" data-i18n="writingTemplates" data-edit-action>写作模板</button>
         <div class="dropdown editor-format-dropdown">
           <button type="button" data-i18n-title="fontFamily" title="字体"><b aria-hidden="true">A</b> <span id="font-label" data-i18n="fontFamily">字体</span> <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-chevron-down"></use></svg></button>
           <div class="dropdown-menu editor-format-menu font-menu" id="font-menu">
@@ -1240,6 +1316,7 @@
         <button onclick="openMermaidModal()" data-i18n-title="mermaid" title="插入 Mermaid 图表"><svg class="icon"><use href="#icon-mermaid"></use></svg> <span data-i18n="mermaid">Mermaid</span></button>
       </div>
       <div class="editor-actions">
+        <button type="button" id="numbering-toggle" aria-controls="numbering-review" aria-expanded="false" onclick="toggleNumberingPanel()" data-i18n="numberingSuggestions">编号建议</button>
         <div class="dropdown" id="view-dropdown">
           <button onclick="toggleViewMenu()" data-i18n-title="view" title="视图布局"><svg class="icon"><use href="#icon-layout"></use></svg> <span data-i18n="view">视图</span> <svg class="icon icon-sm"><use href="#icon-chevron-down"></use></svg></button>
           <div class="dropdown-menu" id="view-menu">
@@ -1261,7 +1338,10 @@
           <span data-i18n="editorPaneHint">支持 Markdown 语法</span>
           <button class="collapse-btn" id="editor-collapse-btn" onclick="togglePane('editor')" title="收起编辑区"><svg class="icon icon-sm"><use href="#icon-chevron-left"></use></svg></button>
         </div>
-        <textarea id="editor" aria-labelledby="editor-label" aria-describedby="indent-help" data-i18n-placeholder="editorPlaceholder" placeholder="开始输入 Markdown..." spellcheck="false"></textarea>
+        <div class="editor-input">
+          <div class="editor-line-numbers" aria-hidden="true"><div class="editor-line-mirror"></div></div>
+          <textarea id="editor" aria-labelledby="editor-label" aria-describedby="indent-help" data-i18n-placeholder="editorPlaceholder" placeholder="开始输入 Markdown..." spellcheck="false"></textarea>
+        </div>
       </div>
       <div class="resizer" id="resizer"></div>
       <div class="pane preview-pane">
@@ -1275,21 +1355,23 @@
           <button id="preview-pause" type="button" aria-pressed="false" data-i18n="previewPause">暂停预览</button>
           <span id="word-count">0 字</span>
         </div>
-        <div class="numbering-review" id="numbering-review" hidden>
-          <div class="numbering-review-actions">
-            <span id="numbering-status" role="status"></span>
-            <button type="button" id="numbering-apply" onclick="applyNumbering()" data-edit-action data-i18n="numberingApply" hidden>应用编号</button>
-            <button type="button" onclick="cancelNumbering()" data-i18n="cancel">取消</button>
-          </div>
-          <details id="numbering-changes" hidden>
-            <summary data-i18n="numberingChanges">编号建议</summary>
-            <ul id="numbering-rows"></ul>
-          </details>
-        </div>
         <div class="preview-content" id="preview"></div>
         <textarea id="preview-source" aria-labelledby="source-label" aria-describedby="indent-help" class="preview-source" data-i18n-placeholder="previewSourcePlaceholder" placeholder="在此编辑 Markdown 源码..." spellcheck="false"></textarea>
       </div>
     </div>
+
+    <section class="numbering-review" id="numbering-review" aria-labelledby="numbering-review-title" hidden>
+      <div class="numbering-resizer" id="numbering-resizer" role="separator" tabindex="0" aria-orientation="horizontal"
+        aria-controls="numbering-review" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" data-i18n-title="numberingResize"></div>
+      <header class="numbering-review-actions">
+        <strong id="numbering-review-title" data-i18n="numberingSuggestions">编号建议</strong>
+        <span id="numbering-status" role="status"></span>
+        <button type="button" id="numbering-apply" onclick="applyNumbering()" data-edit-action data-i18n="numberingApply" hidden>应用编号</button>
+        <button type="button" id="numbering-undo" onclick="undoNumbering()" data-edit-action data-i18n="numberingUndo" disabled>撤回</button>
+        <button type="button" id="numbering-collapse" onclick="toggleNumberingPanel()" data-i18n="numberingCollapse">收起</button>
+      </header>
+      <div class="numbering-groups" id="numbering-groups"></div>
+    </section>
 
     <span class="sr-only" id="indent-help" data-i18n="indentEscape"></span>
     <div class="statusbar">
@@ -1618,43 +1700,6 @@
       </footer>
     </section>
   </div>
-  <div class="modal-overlay" id="outline-modal" role="dialog" aria-modal="true" aria-labelledby="outline-title">
-    <section class="modal">
-      <header class="modal-header"><h3 id="outline-title" data-i18n="writingOutline">标题大纲</h3></header>
-      <div class="modal-body">
-        <label for="outline-source" data-i18n="writingOutlineSource">大纲来源</label>
-        <select id="outline-source">
-          <option value="original" data-i18n="writingOutlineOriginal">原文</option>
-          <option value="preview" data-i18n="writingOutlinePreview">编号预览</option>
-        </select>
-        <label for="outline-list" data-i18n="writingOutline">标题大纲</label>
-        <select id="outline-list" size="9"></select>
-        <p id="outline-status" role="status"></p>
-      </div>
-      <footer class="modal-footer">
-        <button type="button" onclick="closeOutline()" data-i18n="cancel">关闭</button>
-        <button type="button" id="outline-jump" onclick="jumpToHeading()" data-i18n="writingJump">跳转</button>
-      </footer>
-    </section>
-  </div>
-  <div class="modal-overlay" id="template-modal" role="dialog" aria-modal="true" aria-labelledby="template-title">
-    <section class="modal">
-      <header class="modal-header"><h3 id="template-title" data-i18n="writingTemplates">写作模板</h3></header>
-      <div class="modal-body">
-        <label for="template-list" data-i18n="writingTemplates">写作模板</label>
-        <select id="template-list">
-          <option value="readme">README</option>
-          <option value="meeting" data-i18n="templateMeeting">会议纪要</option>
-          <option value="technical" data-i18n="templateTechnical">技术文档</option>
-        </select>
-        <textarea id="template-content" rows="12" readonly aria-labelledby="template-title"></textarea>
-      </div>
-      <footer class="modal-footer">
-        <button type="button" onclick="closeTemplates()" data-i18n="cancel">关闭</button>
-        <button type="button" onclick="insertTemplate()" data-i18n="insert" data-edit-action>插入</button>
-      </footer>
-    </section>
-  </div>
   <script src="vendor/marked.umd.js"></script>
   <script src="vendor/purify.min.js"></script>
   <script src="i18n.js"></script>
@@ -1670,6 +1715,39 @@
     listStyleSheet.textContent = editorListFormat.css() + '\n' + editorNumbering.css;
     document.head.append(listStyleSheet);
     const editor = document.getElementById('editor');
+    const lineMirror = document.querySelector('.editor-line-mirror');
+    let numberedSource;
+    let lineNumberFrame;
+
+    function syncLineScroll() {
+      lineMirror.style.transform = 'translateY(' + -editor.scrollTop + 'px)';
+    }
+
+    function scheduleLineNumbers() {
+      if (lineNumberFrame) return;
+      lineNumberFrame = requestAnimationFrame(() => {
+        lineNumberFrame = undefined;
+        if (numberedSource !== editor.value) {
+          numberedSource = editor.value;
+          const lines = numberedSource.split('\n');
+          const fragment = document.createDocumentFragment();
+          for (const [index, text] of lines.entries()) {
+            const line = document.createElement('span');
+            line.dataset.line = index + 1;
+            line.textContent = text;
+            fragment.append(line);
+          }
+          lineMirror.replaceChildren(fragment);
+          lineMirror.parentElement.style.setProperty('--line-number-digits', Math.max(2, String(lines.length).length));
+        }
+        const scrollbarWidth = editor.offsetWidth - editor.clientWidth;
+        lineMirror.style.width = editor.getBoundingClientRect().width - scrollbarWidth + 'px';
+        syncLineScroll();
+      });
+    }
+
+    new ResizeObserver(scheduleLineNumbers).observe(editor);
+    editor.addEventListener('scroll', syncLineScroll);
     const preview = document.getElementById('preview');
     const previewSource = document.getElementById('preview-source');
     const filenameInput = document.getElementById('filename');
@@ -1681,6 +1759,8 @@
       getItem(key) { try { return localStorage.getItem(key); } catch (_) { return null; } },
       setItem(key, value) { try { localStorage.setItem(key, value); } catch (_) {} }
     };
+    const DEFAULT_FONT_SIZE = 12;
+
     let draft = { text: '', filename: '', revision: 0 };
     let savedDraft = draft;
     let ready = false;
@@ -1701,6 +1781,7 @@
     let previewMode = 'preview';
     let currentLang = 'zh-CN';
     let numberingJob;
+    let numberingReview;
     let numberingConnection;
     const NUMBERING_SETTINGS_KEY = 'md_editor_numbering_settings';
     const NUMBERING_CREDENTIAL_KEY = 'md_editor_numbering_credential';
@@ -1753,6 +1834,7 @@
       updateViewMenuLabel();
       updateStatusBar();
       updateCount();
+      renderNumberingPanel();
     }
 
     function updateCollapseBtnLabels() {
@@ -2059,7 +2141,8 @@
       clearTimeout(renderTimer);
       if (previewPaused && !force) return previewTask;
       const generation = ++previewGeneration;
-      const text = numberingJob?.result?.text ?? draft.text;
+      const job = activeNumberingReview();
+      const text = job && !job.reverted ? job.result.text : draft.text;
       if (!text.includes('attachments/')) return renderPreview(text);
       previewTask = editorAttachments.resolve(text).then(result => {
         if (generation === previewGeneration) return renderPreview(text, result.text);
@@ -2074,7 +2157,6 @@
       body.className = 'markdown-body';
       preview.replaceChildren(body);
       renderedPreviewText = text;
-      styleTaskLists();
       const generation = previewGeneration;
       previewTask = enhanceContent(body, () => body.isConnected && generation === previewGeneration);
       return previewTask;
@@ -2100,16 +2182,6 @@
         } catch (_) { if (current()) warn('diagramUnavailable'); }
       }
       return [...new Set(issues)];
-    }
-
-    function styleTaskLists() {
-      preview.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-        const li = cb.closest('li');
-        if (!li) return;
-        li.classList.add('task-item');
-        const ul = li.closest('ul, ol');
-        if (ul && ul.tagName === 'UL') ul.classList.add('task-list');
-      });
     }
 
     function escapeHtml(text) {
@@ -2159,6 +2231,7 @@
 
     function reflectDraft() {
       if (editor.value !== draft.text) editor.value = draft.text;
+      scheduleLineNumbers();
       if (previewSource.value !== draft.text) previewSource.value = draft.text;
       const name = filenameStem(draft.filename);
       if (filenameInput.value !== name) filenameInput.value = name;
@@ -2167,17 +2240,22 @@
     function commitDraft(text, filename = draft.filename, history = 'step', render = true) {
       if (!canEditDraft()) { reflectDraft(); return; }
       if (text === draft.text && filename === draft.filename) return;
-      const restoreNumberingPreview = text !== draft.text && cancelNumbering(false);
+      const textChanged = text !== draft.text;
+      const reviewState = numberingReviewState();
+      const restoreNumberingPreview = textChanged && Boolean(activeNumberingReview());
       draft = { ...draft, text, filename };
+      if (textChanged) {
+        if (numberingJob) stopNumberingAnalysis();
+        else if (reviewState !== numberingReviewState()) renderNumberingPanel();
+      }
       reflectDraft();
       clearTimeout(historyTimer);
       if (history === 'typing') historyTimer = setTimeout(recordHistory, 400);
       if (history === 'step') recordHistory();
       autoSave();
       updateCount();
-      if (restoreNumberingPreview) updatePreview(true);
+      if (restoreNumberingPreview || (textChanged && reviewState !== 'ready' && activeNumberingReview())) updatePreview(true);
       else if (render && previewMode === 'preview') schedulePreview();
-      if (activeDialog?.id === 'outline-modal') refreshOutline();
       if (replacePlan && replacePlan.original !== draft.text) clearReplacePlan();
     }
 
@@ -2428,10 +2506,11 @@
           left: { style: docx.BorderStyle.SINGLE, size: 6, color: "CCCCCC", space: 8 }
         };
         if (pOpts.indent) {
-          pOpts.indent = { left: (pOpts.indent.left || 0) + 720 };
+          pOpts.indent = { ...pOpts.indent, left: (pOpts.indent.left || 0) + 720 };
         } else {
           pOpts.indent = { left: 720 };
         }
+        if (pOpts.leftTabStop !== undefined) pOpts.leftTabStop += 720;
         return new docx.Paragraph(pOpts);
       }
       return new docx.Paragraph(opts);
@@ -2445,6 +2524,22 @@
       const text = picked ? picked.symbol || picked.prefix + '%' + (level + 1) + picked.suffix :
         ordered ? '%' + (level + 1) + (level % 3 === 1 ? ')' : '.') : ['•', '○', '■'][level % 3];
       return { format, text, start: ordered ? node.start : 1 };
+    }
+
+    function wordListTextStart(node, level, measure) {
+      const { text, start } = wordListLevel(node, level);
+      const counterStyle = editorListFormat.styles[node.dataset.listStyle]?.css ||
+        ['decimal', 'lower-alpha', 'lower-roman'][level % 3];
+      let number = start;
+      let widest = 0;
+      for (const li of node.children) {
+        if (li.tagName !== 'LI') continue;
+        const label = li.dataset.numberLabel || li.dataset.sourceNumberLabel ||
+          text.replace('%' + (level + 1), editorListFormat.markerNumber(number++, counterStyle));
+        widest = Math.max(widest, measure(label).width);
+      }
+      // 1 CSS px = 15 twips. 留出编号与正文之间的空隙。
+      return Math.max(480, Math.ceil(widest * 15) + 160);
     }
 
     function wordListDefinition(node, level, context, parent) {
@@ -2468,8 +2563,7 @@
       }
       definition.used.set(info.level, {
         format: info.format, text: info.text, start: info.start,
-        isLegalNumberingStyle: info.text.includes('.%'),
-        paragraphStyle: info.heading ? 'Heading' + (info.level + 1) : undefined
+        isLegalNumberingStyle: info.text.includes('.%')
       });
       return { reference: definition.reference, level: info.level };
     }
@@ -2478,13 +2572,6 @@
       indentLevel = indentLevel || 0;
       if (!node || node.nodeType !== Node.ELEMENT_NODE) return [];
       var tag = node.tagName, paras = [], i, j, child, runs;
-
-      // 标题
-      var headingMap = { H1: docx.HeadingLevel.HEADING_1, H2: docx.HeadingLevel.HEADING_2, H3: docx.HeadingLevel.HEADING_3, H4: docx.HeadingLevel.HEADING_4, H5: docx.HeadingLevel.HEADING_5, H6: docx.HeadingLevel.HEADING_6 };
-      if (headingMap[tag]) {
-        return [makeDocxParagraph({ heading: headingMap[tag], numbering: wordManagedNumbering(node, context),
-          children: await parseInline(node, {}, context) }, isBlockquote)];
-      }
 
       // 段落
       if (tag === 'P') {
@@ -2495,20 +2582,24 @@
 
       if (tag === 'UL' || tag === 'OL') {
         const level = Math.min(indentLevel, 8);
+        const textStart = wordListTextStart(node, level, context.measureListLabel);
         let definition;
         for (const li of node.children) {
           if (li.tagName !== 'LI') continue;
           let numbering = wordManagedNumbering(li, context);
-          if (!numbering) {
+          if (!numbering && !li.dataset.sourceNumberLabel) {
             definition ||= wordListDefinition(node, level, context, indentLevel < 9 ? parentList : undefined);
             numbering = { reference: definition.reference, level };
           }
           runs = await parseInline(li, {}, context);
           const task = li.querySelector(':scope > input[type="checkbox"], :scope > p > input[type="checkbox"]');
           if (task) runs.unshift(new docx.TextRun(task.checked ? '☑ ' : '☐ '));
+          if (li.dataset.sourceNumberLabel) {
+            runs.unshift(new docx.TextRun({ children: [li.dataset.sourceNumberLabel, new docx.Tab()] }));
+          }
           paras.push(makeDocxParagraph({
             numbering, children: runs, spacing: { after: 60 },
-            indent: { left: 720 * (numbering.level + 1), hanging: 360 }
+            indent: { left: textStart, hanging: textStart }, leftTabStop: textStart
           }, isBlockquote));
           let nextList = definition;
           for (const child of li.children) {
@@ -2618,17 +2709,20 @@
       try { await loadLibrary('docx'); }
       catch (_) { showToast(t('wordUnavailable')); return; }
 
-      const prepared = await checkExport(entry, 'all');
+      const prepared = await checkExport(entry, 'all', true);
       if (!prepared) return;
       const font = editorListFormat.font(entry.text);
-      const context = { numbering: [], managedNumbering: new Map(), missingImages: 0, font };
+      const labelCanvas = document.createElement('canvas').getContext('2d');
+      labelCanvas.font = `${DEFAULT_FONT_SIZE}pt ${font || 'Arial'}`;
+      const context = { numbering: [], managedNumbering: new Map(), missingImages: 0, font,
+        measureListLabel: label => labelCanvas.measureText(label) };
       const children = await bodyToDocxChildren(prepared.body, context);
       const config = context.numbering.map(({ reference, root, used }) => ({
         reference, levels: Array.from({ length: root ? 9 : Math.max(...used.keys()) + 1 }, (_, level) => {
-          const { paragraphStyle, ...options } = used.get(level) || { ...wordListLevel(root, level), start: 1 };
+          const options = used.get(level) || { ...wordListLevel(root, level), start: 1 };
           return {
             level, ...options, alignment: docx.AlignmentType.LEFT,
-            style: { style: paragraphStyle, paragraph: { indent: { left: 720 * (level + 1), hanging: 360 } } }
+            suffix: 'tab'
           };
         })
       }));
@@ -2636,7 +2730,9 @@
       // 打包为 DOCX 文档
       var doc = new docx.Document({
         numbering: { config },
-        styles: { default: { document: { run: { font: font || 'Arial', size: 24 } } } },
+        styles: { default: {
+          document: { run: { font: font || 'Arial', size: DEFAULT_FONT_SIZE * 2 } }
+        } },
         sections: [{ children, properties: { page: {
           ...(layout.paper === 'A4' ? { size: { width: 11906, height: 16838 } } :
             layout.paper === 'Letter' ? { size: { width: 12240, height: 15840 } } : {}),
@@ -2687,16 +2783,16 @@
     ${editorListFormat.css()}
     ${editorNumbering.css}
     h1, h2, h3, h4, h5, h6 { margin: 24px 0 12px; font-weight: 600; line-height: 1.25; color: #212529; }
-    h1 { font-size: 2em; border-bottom: 1px solid #dee2e6; padding-bottom: 8px; }
-    h2 { font-size: 1.5em; border-bottom: 1px solid #dee2e6; padding-bottom: 6px; }
-    h3 { font-size: 1.25em; }
+    h1 { border-bottom: 1px solid #dee2e6; padding-bottom: 8px; }
+    h2 { border-bottom: 1px solid #dee2e6; padding-bottom: 6px; }
+    .markdown-body { font-size: ${DEFAULT_FONT_SIZE}pt; }
     p { margin: 0 0 14px; }
     a { color: #0d6efd; text-decoration: none; }
     a:hover { text-decoration: underline; }
-    ul, ol { margin: 0 0 14px; padding-left: 2em; }
+    ul, ol { margin: 0 0 14px; padding-inline-start: 0; list-style-position: inside; }
+    li > p:first-child { display: inline; }
     li { margin: 4px 0; }
-    li.task-item { list-style: none; margin-left: -1.4em; }
-    ul.task-list { padding-left: 1.8em; }
+    li:has(> input[type="checkbox"], > p > input[type="checkbox"]) { list-style: none; }
     code { background: #f1f3f5; padding: 2px 6px; border-radius: 4px; font-family: "SFMono-Regular", Consolas, monospace; font-size: 0.9em; }
     pre { background: #f1f3f5; padding: 14px; border-radius: 8px; overflow-x: auto; margin: 0 0 14px; }
     pre code { background: transparent; padding: 0; font-size: 0.9em; }
@@ -2710,7 +2806,7 @@
     .katex-display { margin: 16px 0; overflow-x: auto; }
   </style>
 </head>
-<body>
+<body class="markdown-body">
 ${bodyHtml}
 </body>
 </html>`;
@@ -2951,26 +3047,25 @@ ${bodyHtml}
       const candidates = editorNumbering.find(draft.text);
       if (!candidates.length) { showToast(t('numberingNoCandidates')); return; }
       const job = numberingJob = {
-        id: draft.id, original: draft.text, candidates, picks: new Map(), controller: new AbortController()
+        id: draft.id, original: draft.text, candidates, picks: new Map(), levelStyles: new Map(),
+        openGroups: new Set(), controller: new AbortController(), progress: ['numberingConnecting']
       };
       const { signal } = job.controller;
-      const status = document.getElementById('numbering-status');
-      const review = document.getElementById('numbering-review');
       if (previewCollapsed) setLayoutMode('both');
       if (previewMode !== 'preview') setPreviewMode('preview');
-      review.hidden = false;
-      status.textContent = t('numberingConnecting');
-      updateEditAvailability();
+      setNumberingPanel(true);
+      renderNumberingPanel();
       try {
         const { provider, model, batchLimit } = await numberingRequest(settings, { action: 'status' }, signal);
         if (numberingJob !== job) return;
         if (typeof provider !== 'string' || typeof model !== 'string') throw new Error('numberingConnectionError');
         if (!window.confirm(t('numberingSendConfirm', candidates.length, provider, model))) {
-          cancelNumbering();
+          stopNumberingAnalysis();
           return;
         }
         const choices = await editorNumbering.analyze(candidates, (batch, previous, current, total) => {
-          status.textContent = total > 1 ? t('numberingAnalyzingBatch', current, total) : t('numberingAnalyzing');
+          job.progress = total > 1 ? ['numberingAnalyzingBatch', current, total] : ['numberingAnalyzing'];
+          renderNumberingStatus();
           return numberingRequest(settings, {
             action: 'analyze', prompt: settings.prompt, candidates: batch,
             previous: previous.length ? previous : undefined
@@ -2978,87 +3073,266 @@ ${bodyHtml}
         }, signal, batchLimit);
         if (numberingJob !== job || draft.id !== job.id || draft.text !== job.original) return;
         job.choices = choices;
+        calculateNumberingReview(job);
+        numberingJob = undefined;
+        numberingReview = job;
         refreshNumberingReview();
       } catch (error) {
         if (numberingJob !== job) return;
-        cancelNumbering();
+        stopNumberingAnalysis();
         showToast(t(['numberingLocalServiceRequired', 'numberingConnectionError', 'numberingCloudUnavailable',
           'numberingCloudEndpointUnsupported', 'numberingModelError', 'numberingTimeout'].includes(error.message)
           ? error.message : 'numberingInvalidResult'));
       }
     }
 
-    function refreshNumberingReview(restoreFocus) {
-      const job = numberingJob;
-      const result = editorNumbering.patch(job.original, job.candidates, job.choices, job.picks);
+    function numberingReviewState() {
+      const job = numberingReview;
+      if (!job || draft.id !== job.id) return undefined;
+      if (job.applied) return draft.text === job.result.text ? 'applied' : 'stale';
+      return draft.text === job.original ? 'ready' : 'stale';
+    }
+
+    function activeNumberingReview() {
+      return numberingReviewState() === 'ready' && numberingReview.result.valid ? numberingReview : undefined;
+    }
+
+    const numberingPanel = document.getElementById('numbering-review');
+    const numberingToggle = document.getElementById('numbering-toggle');
+    const numberingResizer = document.getElementById('numbering-resizer');
+
+    function setNumberingPanel(open) {
+      numberingPanel.hidden = !open;
+      numberingToggle.setAttribute('aria-expanded', String(open));
+    }
+
+    function toggleNumberingPanel() {
+      const opening = numberingPanel.hidden;
+      setNumberingPanel(opening);
+      if (!opening) numberingToggle.focus();
+    }
+
+    function resizeNumberingPanel(height) {
+      const limit = numberingPanel.parentElement.clientHeight * 0.48;
+      const size = Math.min(limit, Math.max(112, height));
+      numberingPanel.style.setProperty('--numbering-height', size + 'px');
+      numberingResizer.setAttribute('aria-valuenow', Math.round(size / limit * 100));
+    }
+
+    let numberingDrag;
+    numberingResizer.addEventListener('pointerdown', event => {
+      if (event.button !== 0) return;
+      numberingDrag = { y: event.clientY, height: numberingPanel.offsetHeight };
+      numberingResizer.setPointerCapture(event.pointerId);
+    });
+    numberingResizer.addEventListener('pointermove', event => {
+      if (numberingDrag) resizeNumberingPanel(numberingDrag.height + numberingDrag.y - event.clientY);
+    });
+    numberingResizer.addEventListener('lostpointercapture', () => { numberingDrag = undefined; });
+    numberingResizer.addEventListener('keydown', event => {
+      if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+      event.preventDefault();
+      resizeNumberingPanel(numberingPanel.offsetHeight + (event.key === 'ArrowUp' ? 24 : -24));
+    });
+
+    function calculateNumberingReview(job) {
+      const result = editorNumbering.patch(job.original, job.candidates, job.choices, job.picks, job.levelStyles);
       const expected = job.candidates.filter(candidate => candidate.saved).length +
         result.preview.filter(row => row.label && !row.candidate.saved).length;
       const valid = result.text === job.original ||
         markdownContent.fragment(result.text).querySelectorAll('[data-number-label]').length === expected;
       job.result = { ...result, valid, text: valid ? result.text : job.original, canApply: valid && result.text !== job.original };
-      const pending = result.preview.filter(row => row.pending).length;
-      const changed = result.preview.filter(row => row.changed).length;
-      document.getElementById('numbering-status').textContent = !valid ? t('numberingInvalidLayout') :
-        t('numberingReviewStatus', changed, pending);
-      document.getElementById('numbering-apply').hidden = !job.result.canApply;
-      document.getElementById('numbering-changes').hidden = !result.preview.length;
-      const rows = document.getElementById('numbering-rows');
-      const entries = document.createDocumentFragment();
-      for (const row of result.preview) {
+    }
+
+    function refreshNumberingReview(focusId) {
+      if (focusId) {
+        numberingReview.reverted = false;
+        calculateNumberingReview(numberingReview);
+      }
+      renderNumberingPanel();
+      if (focusId) document.getElementById(focusId)?.focus({ preventScroll: true });
+      updatePreview(true);
+    }
+
+    function renderNumberingStatus(state = numberingReviewState()) {
+      const { valid, preview: rows } = numberingReview?.result || {};
+      let message = t('numberingReviewEmpty');
+      if (numberingJob) message = t(...numberingJob.progress);
+      else if (state === 'applied') message = t('numberingReviewApplied');
+      else if (state === 'stale') message = t('numberingReviewStale');
+      else if (state === 'ready' && numberingReview.reverted) message = t('numberingReverted');
+      else if (state === 'ready' && !valid) message = t('numberingInvalidLayout');
+      else if (state === 'ready' && rows.length) {
+        message = t('numberingReviewStatus', rows.filter(row => row.changed).length, rows.filter(row => row.pending).length);
+      }
+      document.getElementById('numbering-status').textContent = message;
+    }
+
+    function numberingGroupTitle(kind, level) {
+      return t('numberingLevelGroup', t(kind === 'ordered' ? 'numberingGroupOrdered' : 'numberingGroupBullet'), level);
+    }
+
+    function renderNumberingPanel() {
+      const job = numberingReview;
+      const state = numberingReviewState();
+      const editable = state === 'ready' && !numberingJob;
+      const groups = new Map();
+      const issues = [];
+      for (const row of job?.result.preview || []) {
+        if (row.issue) {
+          issues.push(row);
+          continue;
+        }
+        const { kind, level } = row.proposed;
+        const key = kind + ':' + level;
+        if (!groups.has(key)) groups.set(key, { kind, level, rows: [] });
+        groups.get(key).rows.push(row);
+      }
+      const sections = [...groups.entries()].sort(([, a], [, b]) =>
+        a.level - b.level || Number(b.kind === 'ordered') - Number(a.kind === 'ordered'));
+      const list = document.getElementById('numbering-groups');
+      const scroll = list.scrollTop;
+      const entries = sections.map(([key, group]) => renderNumberingGroup(job, key, group, editable));
+      if (issues.length) {
+        const section = document.createElement('div');
+        section.className = 'numbering-group';
+        const title = document.createElement('strong');
+        title.textContent = t('numberingReviewIssues');
+        section.append(title, renderNumberingRows(job, issues, editable));
+        entries.unshift(section);
+      }
+      list.replaceChildren(...entries);
+      list.scrollTop = scroll;
+      document.getElementById('numbering-apply').hidden = !editable || !job.result.canApply;
+      renderNumberingStatus(state);
+      updateNumberingAvailability();
+    }
+
+    function renderNumberingGroup(job, key, { kind, level, rows }, editable) {
+      const groupTitle = numberingGroupTitle(kind, level);
+      const section = document.createElement('div');
+      section.className = 'numbering-group';
+      section.dataset.numberingGroup = key;
+      const controls = document.createElement('div');
+      controls.className = 'numbering-group-controls';
+      const summary = document.createElement('button');
+      summary.type = 'button';
+      summary.textContent = t('numberingLevelCount', groupTitle, rows.length);
+      const details = document.createElement('div');
+      details.id = 'numbering-lines-' + kind + '-' + level;
+      summary.setAttribute('aria-controls', details.id);
+      const original = document.createElement('span');
+      original.className = 'numbering-example';
+      const originalStyles = [...new Set(rows.map(row => {
+        const hint = row.candidate.hint;
+        return editorNumbering.styleExamples(hint.style, hint.priorLevel || hint.depth || level) || hint.prefix;
+      }).filter(Boolean))];
+      original.textContent = t('numberingCurrentStyle', originalStyles.slice(0, 3).join(' / ') +
+        (originalStyles.length > 3 ? ' …' : '') || '—');
+      original.title = originalStyles.join(' / ');
+      const label = document.createElement('label');
+      label.append(t('numberingTargetStyle'));
+      const select = document.createElement('select');
+      select.id = 'numbering-style-' + kind + '-' + level;
+      select.dataset.numberingEdit = '';
+      select.setAttribute('aria-label', groupTitle + ' · ' + t('numberingTargetStyle'));
+      select.add(new Option(t('numberingModelStyle'), ''));
+      for (const [style, example] of editorNumbering.reviewStyles(kind, level)) select.add(new Option(example, style));
+      select.value = job.levelStyles.get(key) || '';
+      select.disabled = !editable;
+      select.addEventListener('change', () => {
+        job.levelStyles.set(key, select.value);
+        refreshNumberingReview(select.id);
+      });
+      label.append(select);
+      const example = document.createElement('span');
+      example.className = 'numbering-example';
+      example.textContent = t('numberingChangeExample', rows.filter(row => row.label).slice(0, 3)
+        .map(row => (row.candidate.hint.prefix || '—') + ' → ' + row.label).join('　') || '—');
+      controls.append(summary, original, label, example);
+      section.append(controls, details);
+      const showRows = open => {
+        summary.setAttribute('aria-expanded', String(open));
+        details.hidden = !open;
+        if (open && !details.firstChild) {
+          details.append(renderNumberingRows(job, rows, editable));
+          if (details.isConnected) updateNumberingAvailability();
+        }
+      };
+      showRows(job.openGroups.has(key));
+      summary.addEventListener('click', () => {
+        const open = details.hidden;
+        if (open) job.openGroups.add(key);
+        else job.openGroups.delete(key);
+        showRows(open);
+      });
+      return section;
+    }
+
+    function renderNumberingRows(job, rows, editable) {
+      const entries = document.createElement('ul');
+      for (const row of rows) {
         const li = document.createElement('li');
         const { candidate, proposed } = row;
-        const description = t('numberingReviewRow', candidate.id, candidate.hint.prefix || '—',
-          row.label || '—', row.level || proposed.level, row.anchor || proposed.group);
+        const choice = job.choices.get(candidate.id);
+        const repair = choice.repair;
+        const description = row.issue ? t('numberingReviewIssueRow', candidate.id, t(row.issue, row.issueLine)) :
+          t('numberingReviewRow', candidate.id, candidate.hint.prefix || '—',
+            row.label || '—', row.level || proposed.level, row.anchor || proposed.group);
         li.append(description);
         const select = document.createElement('select');
         select.setAttribute('aria-label', description);
         select.id = 'numbering-choice-' + candidate.id;
-        for (const [value, key] of [['', 'numberingChoiceAuto'], ['use', 'numberingChoiceUse'],
-          ['keep', 'numberingChoiceKeep'], ['heading', 'numberingChoiceHeading'],
-          ['ordered', 'numberingChoiceOrdered'], ['bullet', 'numberingChoiceBullet']]) {
+        select.dataset.numberingEdit = '';
+        select.disabled = !editable;
+        select.add(new Option(t('numberingChoiceAuto'), ''));
+        if (repair) {
+          select.add(new Option(t('numberingChoiceRepair', repair.group, numberingGroupTitle(repair.kind, repair.level)), 'use'));
+        } else if (!choice.issue) select.add(new Option(t('numberingChoiceUse'), 'use'));
+        for (const [value, key] of [['keep', 'numberingChoiceKeep'], ['ordered', 'numberingChoiceOrdered'],
+          ['bullet', 'numberingChoiceBullet']]) {
           select.add(new Option(t(key), value));
         }
         select.value = job.picks.get(candidate.id) || '';
         select.addEventListener('change', () => {
           job.picks.set(candidate.id, select.value);
-          refreshNumberingReview(candidate.id);
+          refreshNumberingReview(select.id);
         });
         li.append(select);
+        if (select.value) li.append(t('numberingManualChoice'));
         entries.append(li);
       }
-      rows.replaceChildren(entries);
-      if (restoreFocus) document.getElementById('numbering-choice-' + restoreFocus)?.focus();
-      updateEditAvailability();
-      updatePreview(true);
-      if (activeDialog?.id === 'outline-modal') refreshOutline();
+      return entries;
     }
 
-    function cancelNumbering(render = true) {
-      if (!numberingJob) return false;
-      numberingJob.controller.abort();
+    function stopNumberingAnalysis() {
+      numberingJob?.controller.abort();
       numberingJob = undefined;
-      document.getElementById('numbering-review').hidden = true;
-      document.getElementById('numbering-apply').hidden = true;
-      const details = document.getElementById('numbering-changes');
-      details.open = false;
-      details.hidden = true;
-      document.getElementById('numbering-rows').replaceChildren();
-      updateEditAvailability();
-      if (render) {
-        updatePreview(true);
-        if (activeDialog?.id === 'outline-modal') refreshOutline();
-      }
-      return true;
+      if (!numberingReview) setNumberingPanel(false);
+      renderNumberingPanel();
     }
 
     function applyNumbering() {
-      const job = numberingJob;
-      if (!canEditDraft() || !job?.result?.canApply || draft.id !== job.id || draft.text !== job.original) return;
+      const job = activeNumberingReview();
+      if (!canEditDraft() || numberingJob || !job?.result.canApply) return;
       pushHistory();
-      cancelNumbering(false);
+      job.applied = true;
       commitDraft(job.result.text, draft.filename, 'step', false);
       updatePreview(true);
+      document.getElementById('numbering-undo').focus();
       showToast(t('numberingApplied'));
+    }
+
+    function undoNumbering() {
+      if (!canEditDraft() || numberingJob || numberingReviewState() !== 'applied') return;
+      const job = numberingReview;
+      pushHistory();
+      job.applied = false;
+      job.reverted = true;
+      commitDraft(job.original, draft.filename, 'step', false);
+      updatePreview(true);
+      document.getElementById('numbering-apply').focus();
+      showToast(t('numberingReverted'));
     }
 
     function openExportSettings() { showDialog(document.getElementById('export-settings')); }
@@ -3080,7 +3354,7 @@ ${bodyHtml}
       exportCheck = null;
     }
 
-    async function checkExport(entry, imageMode = 'none') {
+    async function checkExport(entry, imageMode = 'none', reviewNumbering = false) {
       cancelExportCheck();
       const panel = document.getElementById('export-check');
       const status = document.getElementById('export-check-status');
@@ -3093,6 +3367,10 @@ ${bodyHtml}
       showDialog(panel);
       try {
         const prepared = await prepareExportContent(entry, controller.signal);
+        if (reviewNumbering) {
+          const rows = prepared.body.querySelectorAll('[data-number-review-line]');
+          if (rows.length) prepared.issues.push(t('numberingExportReview', rows[0].dataset.numberReviewLine, rows.length));
+        }
         const results = await Promise.all([...prepared.body.querySelectorAll('img[src]')].map(async img => {
           const source = img.getAttribute('src');
           const label = img.alt || source.slice(0, 160);
@@ -3176,7 +3454,7 @@ ${bodyHtml}
     async function exportPDF() {
       const entry = exportSnapshot(true);
       const layout = exportLayout();
-      const prepared = await checkExport(entry);
+      const prepared = await checkExport(entry, 'none', true);
       if (!prepared) return;
       clearPrintSnapshot();
       document.getElementById('pdf-document').append(prepared.body);
@@ -3328,13 +3606,14 @@ ${bodyHtml}
       editorListFormat.paintImageMarkers(clone);
       Object.assign(clone.style, {
         width: preset.width + 'px', padding: Math.round(preset.width * 0.04) + 'px ' +
-          Math.round(preset.width * 0.045) + 'px', fontSize: Math.round(preset.width / 36) + 'px',
+          Math.round(preset.width * 0.045) + 'px',
         lineHeight: '1.7', boxSizing: 'border-box', background: 'var(--panel-bg)', color: 'var(--text)',
         overflow: 'visible', maxWidth: 'none', margin: '0'
       });
       container.appendChild(clone);
       const markdownBody = clone.querySelector('.markdown-body');
       if (markdownBody) {
+        markdownBody.style.setProperty('--md-document-size', Math.round(preset.width / 36) + 'px');
         markdownBody.style.maxWidth = 'none';
         markdownBody.style.width = '100%';
         markdownBody.style.margin = '0';
@@ -3566,7 +3845,8 @@ ${bodyHtml}
         const next = await readTarget();
         if (!next) throw new Error('Draft is missing');
         importSequence++;
-        cancelNumbering(false);
+        numberingReview = undefined;
+        stopNumberingAnalysis();
         draft = { ...next };
         savedDraft = draft;
         const undoState = workspaceUndo.get(draft.id);
@@ -3645,7 +3925,8 @@ ${bodyHtml}
     });
 
     function exportSnapshot(useNumberingPreview = false) {
-      const text = useNumberingPreview ? numberingJob?.result?.text ?? draft.text : draft.text;
+      const job = useNumberingPreview && activeNumberingReview();
+      const text = job && !job.reverted ? job.result.text : draft.text;
       return { ...draft, text, language: currentLang };
     }
 
@@ -4256,15 +4537,23 @@ ${bodyHtml}
     function updateEditAvailability() {
       const disabled = !canEditDraft();
       editor.disabled = previewSource.disabled = filenameInput.disabled = disabled;
-      document.querySelectorAll('.format-group button:not(#find-button, #outline-button), #custom-font, [data-edit-action]')
+      document.querySelectorAll('.format-group button:not(#find-button), #custom-font, [data-edit-action]')
         .forEach(control => { control.disabled = disabled; });
       if (disabled) {
         document.querySelectorAll('.format-group .dropdown-menu.show').forEach(menu => menu.classList.remove('show'));
         clearReplacePlan();
       }
-      document.getElementById('organize-numbering').disabled = disabled || Boolean(numberingJob);
-      document.getElementById('numbering-apply').disabled = disabled || !numberingJob?.result?.canApply;
+      updateNumberingAvailability();
       updateRecoveryPreview();
+    }
+
+    function updateNumberingAvailability() {
+      const disabled = !canEditDraft() || Boolean(numberingJob);
+      document.getElementById('organize-numbering').disabled = disabled;
+      document.getElementById('numbering-apply').disabled = disabled || !activeNumberingReview()?.result.canApply;
+      document.getElementById('numbering-undo').disabled = disabled || numberingReviewState() !== 'applied';
+      const readOnly = disabled || numberingReviewState() !== 'ready';
+      numberingPanel.querySelectorAll('[data-numbering-edit]').forEach(control => { control.disabled = readOnly; });
     }
 
     function setLayoutMode(mode) {
@@ -4347,7 +4636,6 @@ ${bodyHtml}
     }
 
     const dialogClosers = {
-      'outline-modal': closeOutline, 'template-modal': closeTemplates,
       'workspace-modal': closeWorkspace,
       'export-settings': closeExportSettings, 'export-check': cancelExportCheck,
       'numbering-settings': closeNumberingSettings,
@@ -4364,7 +4652,7 @@ ${bodyHtml}
       new MutationObserver(() => {
         const open = menu.classList.contains('show');
         trigger.setAttribute('aria-expanded', String(open));
-        if (open && document.activeElement === trigger) menu.querySelector('button')?.focus();
+        if (open && document.activeElement === trigger) menu.querySelector('button, select')?.focus();
         if (!open && menu.contains(document.activeElement)) trigger.focus();
       }).observe(menu, { attributes: true, attributeFilter: ['class'] });
     }
@@ -4562,159 +4850,6 @@ ${bodyHtml}
       commitDraft(plan.text);
       findIndex = 0;
       status.textContent = t('statusReplacedCount', plan.count);
-    }
-
-    const outlineList = document.getElementById('outline-list');
-    const outlineSourceSelect = document.getElementById('outline-source');
-    const outlineJump = document.getElementById('outline-jump');
-    let outlineEntries = [];
-    let outlineSnapshot;
-
-    function renderedHeadings(body) {
-      return [...body.querySelectorAll(':scope > :is(h1,h2,h3,h4,h5,h6)')];
-    }
-
-    function sourceHeadings(text) {
-      const normalized = text.replace(/\r\n?/g, '\n');
-      const labels = new Map();
-      if (text.includes('<!-- md-number:v1:')) {
-        for (const heading of renderedHeadings(markdownContent.fragment(text))) {
-          const info = editorNumbering.info(heading);
-          if (info) labels.set(info.sourceLine, heading.dataset.numberLabel);
-        }
-      }
-      const entries = [];
-      let offset = 0;
-      let line = 1;
-      for (const token of marked.lexer(normalized, { gfm: true })) {
-        const start = normalized.indexOf(token.raw, offset);
-        if (start < 0) continue;
-        line += (normalized.slice(offset, start).match(/\n/g) || []).length;
-        if (token.type === 'heading') {
-          const title = editorNumbering.headingContent(token.text, token.depth);
-          entries.push({ title: outlineHeadingTitle(title, labels.get(line)), line, depth: token.depth, offset: start });
-        }
-        line += (token.raw.match(/\n/g) || []).length;
-        offset = start + token.raw.length;
-      }
-      return entries;
-    }
-
-    function outlineHeadingTitle(text, number) {
-      return [number, text.replace(/\s+/g, ' ').trim()].filter(Boolean).join(' ') || '—';
-    }
-
-    function refreshOutline(opening = false) {
-      const job = numberingJob?.result?.valid ? numberingJob : undefined;
-      const usePreview = job && (opening || job !== outlineSnapshot?.job || outlineSourceSelect.value === 'preview');
-      const source = usePreview ? 'preview' : 'original';
-      const text = usePreview ? job.result.text : draft.text;
-      const selection = !opening && outlineSnapshot?.source === source && outlineSnapshot.text === text
-        ? outlineList.selectedIndex : 0;
-      outlineSnapshot = { job, source, text };
-      outlineSourceSelect.disabled = !job;
-      outlineSourceSelect.options[1].disabled = !job;
-      outlineSourceSelect.value = source;
-
-      outlineEntries = usePreview ? renderedHeadings(markdownContent.fragment(text)).map(heading => ({
-        title: outlineHeadingTitle(heading.textContent, heading.dataset.numberLabel),
-        depth: Number(heading.tagName[1])
-      })) : sourceHeadings(text);
-      outlineList.replaceChildren(...outlineEntries.map((entry, index) =>
-        new Option('   '.repeat(entry.depth - 1) + entry.title + (entry.line ? ' · ' + entry.line : ''), String(index))));
-      outlineList.selectedIndex = outlineEntries.length ? Math.max(0, selection) : -1;
-      outlineJump.disabled = !outlineEntries.length;
-      document.getElementById('outline-status').textContent = outlineEntries.length ? '' : t('writingNoHeadings');
-    }
-    outlineSourceSelect.addEventListener('change', () => refreshOutline());
-
-    function openOutline() {
-      refreshOutline(true);
-      showDialog(document.getElementById('outline-modal'));
-    }
-
-    function closeOutline() { dismissDialog(document.getElementById('outline-modal')); }
-
-    function jumpToOriginalHeading(entry) {
-      if (editorCollapsed) setLayoutMode('both');
-      editor.focus();
-      editor.setSelectionRange(entry.offset, entry.offset);
-      const style = getComputedStyle(editor);
-      const measure = document.createElement('div');
-      Object.assign(measure.style, {
-        position: 'fixed', visibility: 'hidden', width: editor.clientWidth + 'px',
-        boxSizing: 'border-box', padding: style.padding, font: style.font, lineHeight: style.lineHeight,
-        tabSize: style.tabSize, whiteSpace: style.whiteSpace, wordBreak: style.wordBreak
-      });
-      measure.textContent = editor.value.slice(0, entry.offset) + '\u200b';
-      document.body.append(measure);
-      editor.scrollTop = Math.max(0, measure.offsetHeight - parseFloat(style.paddingBottom) - 3 * parseFloat(style.lineHeight));
-      measure.remove();
-    }
-
-    async function jumpToHeading() {
-      const index = outlineList.selectedIndex;
-      const entry = outlineEntries[index];
-      if (!entry) return;
-      const { job, source, text } = outlineSnapshot;
-      closeOutline();
-      if (source === 'original') {
-        jumpToOriginalHeading(entry);
-        return;
-      }
-      if (previewCollapsed) setLayoutMode('both');
-      if (previewMode !== 'preview') setPreviewMode('preview');
-      if (renderedPreviewText !== text) await updatePreview(true);
-      if (job !== numberingJob || job.result.text !== text || renderedPreviewText !== text || previewMode !== 'preview') return;
-      const heading = renderedHeadings(preview.firstElementChild)[index];
-      if (heading) {
-        preview.scrollTop = heading.getBoundingClientRect().top - preview.getBoundingClientRect().top + preview.scrollTop - 12;
-      }
-    }
-    outlineList.addEventListener('dblclick', jumpToHeading);
-    outlineList.addEventListener('keydown', event => {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        jumpToHeading();
-      }
-    });
-
-    const templateList = document.getElementById('template-list');
-    const templateContent = document.getElementById('template-content');
-    function updateTemplate() {
-      const titles = {
-        readme: ['Project', 'Overview', 'Getting started', 'Usage'],
-        meeting: ['Meeting notes', 'Agenda', 'Decisions', 'Action items'],
-        technical: ['Technical document', 'Context', 'Design', 'Verification']
-      };
-      const chinese = {
-        readme: ['项目名称', '简介', '快速开始', '使用方法'],
-        meeting: ['会议纪要', '议程', '决定', '行动事项'],
-        technical: ['技术文档', '背景', '设计', '验证']
-      };
-      const [title, ...sections] = (currentLang.startsWith('zh') ? chinese : titles)[templateList.value];
-      templateContent.value = '# ' + title + '\n\n' + sections.map(name => '## ' + name + '\n\n').join('');
-    }
-    templateList.addEventListener('change', updateTemplate);
-
-    function openTemplates() {
-      updateTemplate();
-      showDialog(document.getElementById('template-modal'));
-    }
-
-    function closeTemplates() { dismissDialog(document.getElementById('template-modal')); }
-
-    function insertTemplate() {
-      if (!canEditDraft()) return;
-      const content = templateContent.value;
-      closeTemplates();
-      const el = getActiveEditor();
-      pushHistory();
-      const before = el.value.slice(0, el.selectionStart);
-      const separator = !before || before.endsWith('\n\n') ? '' : before.endsWith('\n') ? '\n' : '\n\n';
-      el.setRangeText(separator + content, el.selectionStart, el.selectionEnd, 'end');
-      commitEditor(el);
-      el.focus();
     }
 
     function toggleProxyInput() {
